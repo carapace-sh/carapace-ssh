@@ -53,6 +53,11 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 - [x] Documentation/reference updates:
   - Updated in-repo OpenSSH skill references (`skills/openssh/references/*`) for revoked/CA known_hosts policy, Match criteria alignment (`exec`/`command`/`sessiontype`, negated criteria, empty quoted args), known_hosts path aggregation (`none` excluded), conditional `Include` tradeoff, and syntax tolerance notes.
 
+- [x] Regression fixtures and targeted fuzz/docs pass:
+  - Added config edge-case regression fixture/test (`config/testdata/edge-cases.conf`, `edge-includes/inc.conf`) covering Match/exec-command safety, negated criteria, sessiontype/empty args, known_hosts facts/`none`, and include resolution.
+  - Ran targeted 15s fuzz passes: `config` `FuzzIndexReader`/`FuzzParseDirectives`, `knownhosts` `FuzzIndexReader`, `destination` `Fuzz`, `authorizedkeys` `Fuzz` (all passed, no crashes/side effects observed).
+  - Updated `AGENTS.md` to reflect refined Match/known_hosts/facts/include behavior and expanded test coverage/fixtures.
+
 ### Remaining focus
 - Full Match criteria audit/unknown-criterion fallback improvements and additional parsing alignment cases.
 - Broader ssh_config syntax tolerance follow-ups (additional continuation/comment/escape edge cases, explicit `%`/env handling decisions).
@@ -171,13 +176,13 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 ### 7. Fuzzing, regression matrix, and documentation
 
 **Plan**
-- [~] Extend fuzz seeds/corpora for high-value combinations: *(config/knownhosts seeds expanded; further cases pending)*
+- [~] Extend fuzz seeds/corpora for high-value combinations: *(config/knownhosts seeds expanded; short and 15s targeted fuzz runs passed on core parsers; further cases pending)*
   - `Match` with `exec/command` (complex quoting), `all/canonical/final`, unknown/new criteria, `sessiontype`, negations, empty args, continuations, and `= / spaced =` forms.
   - `Include` graphs: nested, globbed, quoted, relative, `-F` isolation, reader contexts, symlink/cycle cases, missing/unreadable targets, and conditional placement in `Host`/`Match` blocks.
   - `known_hosts`: markers, hashed, mixed literal/wildcard/negated tokens, `[ipv4]:port`, `[ipv6]:port`, malformed fields/hashes/markers.
-- [ ] Add regression fixtures under package `testdata/` for realistic configs/layouts (user+system+drop-in, bastion/ProxyJump/IdentityFile/known_hosts declarations) with golden candidate/facts outputs.
-- [ ] Run and keep passing: `go test ./...`, `go vet ./...`, and targeted fuzz runs for changed parsers (e.g. `go test ./config -run '^$' -fuzz=Fuzz`, similarly for `knownhosts`, `destination`, `authorizedkeys` as relevant).
-- [~] Update docs when behavior/contracts become explicit: `README.md` scope/guarantees, `AGENTS.md` notes, and `skills/openssh/references/*` (Match criteria coverage, include context rules, known_hosts host extraction policy, IPv6/`none` handling). *(README and in-repo skill references partially updated; AGENTS/final contract pass pending)*
+- [~] Add regression fixtures under package `testdata/` for realistic configs/layouts (user+system+drop-in, bastion/ProxyJump/IdentityFile/known_hosts declarations) with golden candidate/facts outputs. *(config edge-case fixture + golden assertions added; broader layouts pending)*
+- [x] Run and keep passing: `go test ./...`, `go vet ./...`, and targeted fuzz runs for changed parsers (e.g. `go test ./config -run '^$' -fuzz=Fuzz`, similarly for `knownhosts`, `destination`, `authorizedkeys` as relevant). *(targeted 15s fuzz runs passed for config IndexReader/ParseDirectives, knownhosts IndexReader, destination, authorizedkeys; longer campaigns pending)*
+- [~] Update docs when behavior/contracts become explicit: `README.md` scope/guarantees, `AGENTS.md` notes, and `skills/openssh/references/*` (Match criteria coverage, include context rules, known_hosts host extraction policy, IPv6/`none` handling). *(README, AGENTS, and in-repo skill references updated for implemented behavior; final contract pass pending)*
 
 **Acceptance**
 - New edge cases are locked by deterministic tests/fixtures; fuzzers cover the risky parsing surfaces without finding panics or side effects.
