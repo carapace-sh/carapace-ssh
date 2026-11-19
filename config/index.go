@@ -1,7 +1,6 @@
 package config
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"os"
@@ -36,16 +35,11 @@ func IndexFile(path string, opts ...Option) (*Index, error) {
 		return idx, nil
 	}
 
-	source := Source{Path: path}
-	// Best-effort base dir: for explicit -F style paths, relative includes are
-	// resolved relative to the including file; BaseDir is used as fallback.
-	if abs, err := o.abs(path); err == nil {
-		source.BaseDir = filepath.Dir(abs)
-	} else {
-		source.BaseDir = filepath.Dir(path)
-	}
-
+	source := makeSource(path, "", o)
 	err := indexSource(idx, source, o)
+	if err != nil && errors.Is(err, os.ErrNotExist) {
+		return idx, nil
+	}
 	return idx, err
 }
 
@@ -77,8 +71,10 @@ func IndexPaths(sources []Source, opts ...Option) (*Index, error) {
 	idx := &Index{hosts: map[string]struct{}{}}
 	var errs []error
 	for _, source := range sources {
-		if source.BaseDir == "" && source.Path != "" {
-			source.BaseDir = filepath.Dir(source.Path)
+		if source.Path != "" {
+			source = makeSource(source.Path, source.BaseDir, o)
+		} else if source.BaseDir == "" && !source.System && o.homeDir != "" {
+			source.BaseDir = filepath.Join(o.homeDir, ".ssh")
 		}
 		if err := indexSource(idx, source, o); err != nil && !errors.Is(err, os.ErrNotExist) {
 			errs = append(errs, err)
@@ -107,19 +103,40 @@ func IndexReader(r io.Reader, source Source, opts ...Option) (*Index, error) {
 		return idx, err
 	}
 	ix := &indexer{opts: o, visited: map[string]struct{}{}}
+
 	if source.Path != "" {
-		if abs, absErr := o.abs(expandTilde(source.Path, o.homeDir)); absErr == nil {
-			source.Path = absPathClean(abs)
-		}
-		if source.BaseDir == "" {
+		source = makeSource(source.Path, source.BaseDir, o)
+		if resolved, resolveErr := ix.resolvePath(source.Path, filepath.Dir(source.Path), source); resolveErr == nil {
+			ix.visited[resolved.visitKey] = struct{}{}
+			source.Path = resolved.readPath
+			if source.BaseDir == "" {
+				source.BaseDir = filepath.Dir(resolved.readPath)
+			}
+		} else if source.BaseDir == "" {
 			source.BaseDir = filepath.Dir(source.Path)
 		}
-		ix.visited[source.Path] = struct{}{}
-	} else if source.BaseDir == "" && !source.System && o.homeDir != "" {
-		source.BaseDir = filepath.Join(o.homeDir, ".ssh")
+	} else if source.BaseDir == "" {
+		if !source.System && o.homeDir != "" {
+			source.BaseDir = filepath.Join(o.homeDir, ".ssh")
+		} else if source.System {
+			source.BaseDir = filepath.Dir(o.systemConfigPath)
+		}
 	}
+
 	ix.indexContent(idx, content, source)
 	return idx, nil
+}
+
+func makeSource(path, baseDir string, o indexOptions) Source {
+	expanded := expandTilde(path, o.homeDir)
+	absPath, err := o.abs(expanded)
+	if err != nil {
+		absPath = filepath.Clean(expanded)
+	}
+	if baseDir == "" {
+		baseDir = filepath.Dir(absPath)
+	}
+	return Source{Path: absPath, BaseDir: baseDir}
 }
 
 type indexer struct {
@@ -201,10 +218,6 @@ type resolvedPath struct {
 	visitKey string
 }
 
-func absPathClean(path string) string {
-	return filepath.Clean(path)
-}
-
 func (ix *indexer) resolvePath(path string, baseDir string, ctx Source) (resolvedPath, error) {
 	expanded := expandTilde(path, ix.opts.homeDir)
 	if !filepath.IsAbs(expanded) {
@@ -275,5 +288,3 @@ func expandTilde(path string, home string) string {
 func hasGlobMeta(pattern string) bool {
 	return strings.ContainsAny(pattern, "*?[")
 }
-
-var _ = bytes.Buffer{}

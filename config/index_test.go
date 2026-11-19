@@ -301,3 +301,12 @@ func TestIndexReader(t *testing.T) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }
+
+func TestFixtureConfig(t *testing.T) {
+	idx := mustIndexFile(t, filepath.Join("testdata", "hosts.conf"))
+	got := idx.HostCandidates()
+	want := []string{"all-host", "alpha", "beta", "delta", "gamma", "gated-by-exec", "jump"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
