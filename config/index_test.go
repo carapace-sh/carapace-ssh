@@ -81,11 +81,26 @@ Host all-host
 Match canonical all
 Host canonical-host
 
+Match final
+Host final-host
+
 Match localuser me localnetwork 10.0.0.0/8
 Host local-host
 
+Match user bob tagged ci
+Host tagged-host
+
+Match version 8.0 originalhost versioned
+Host version-host
+
 Match unknowncriterion value originalhost recovered
 Host recovered-host
+
+Match command "echo hi"
+Host command-host
+
+Match exec "echo hi"
+Host exec-host
 `)
 
 	idx := mustIndexFile(t, cfg)
@@ -94,12 +109,34 @@ Host recovered-host
 		"all-host",
 		"bastion",
 		"canonical-host",
+		"command-host",
+		"exec-host",
+		"final-host",
 		"local-host",
 		"prod",
 		"prod-db",
 		"recovered",
 		"recovered-host",
+		"tagged-host",
+		"version-host",
+		"versioned",
 	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
+func TestHostAndMatchCommaSeparatedAndNegation(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Host one,two,*.nope,!three
+Match host=alpha,beta,!gamma originalhost delta
+`)
+
+	idx := mustIndexFile(t, cfg)
+	got := idx.HostCandidates()
+	want := []string{"alpha", "beta", "delta", "one", "two"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
@@ -143,6 +180,20 @@ func TestIncludeEqualsAndRelativeToIncludingFile(t *testing.T) {
 	}
 }
 
+func TestIncludeTildeExpansion(t *testing.T) {
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	writeFile(t, filepath.Join(home, ".ssh", "extra.conf"), "Host tilde-host\n")
+	writeFile(t, filepath.Join(dir, "main.conf"), "Host main\nInclude ~/.ssh/extra.conf\n")
+
+	idx := mustIndexFile(t, filepath.Join(dir, "main.conf"), WithHomeDir(home))
+	got := idx.HostCandidates()
+	want := []string{"main", "tilde-host"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
 func TestExplicitConfigDoesNotMergeDefaults(t *testing.T) {
 	dir := t.TempDir()
 	home := filepath.Join(dir, "home")
@@ -152,7 +203,8 @@ func TestExplicitConfigDoesNotMergeDefaults(t *testing.T) {
 
 	writeFile(t, userCfg, "Host user-only\n")
 	writeFile(t, sysCfg, "Host system-only\n")
-	writeFile(t, explicit, "Host explicit-only\n")
+	writeFile(t, explicit, "Host explicit-only\nInclude user-included.conf\n")
+	writeFile(t, filepath.Join(dir, "user-included.conf"), "Host included-from-explicit\n")
 
 	idx := mustIndexFile(t, explicit,
 		WithHomeDir(home),
@@ -160,7 +212,7 @@ func TestExplicitConfigDoesNotMergeDefaults(t *testing.T) {
 		WithSystemConfigPath(sysCfg),
 	)
 	got := idx.HostCandidates()
-	want := []string{"explicit-only"}
+	want := []string{"explicit-only", "included-from-explicit"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
@@ -186,6 +238,24 @@ func TestIndexDefaultIncludesUserAndSystem(t *testing.T) {
 
 	got := idx.HostCandidates()
 	want := []string{"shared", "system-only", "user-only"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
+func TestIndexPaths(t *testing.T) {
+	dir := t.TempDir()
+	a := filepath.Join(dir, "a.conf")
+	b := filepath.Join(dir, "b.conf")
+	writeFile(t, a, "Host alpha shared\n")
+	writeFile(t, b, "Host beta shared\n")
+
+	idx, err := IndexPaths([]Source{{Path: a}, {Path: b}})
+	if err != nil {
+		t.Fatalf("IndexPaths(): %v", err)
+	}
+	got := idx.HostCandidates()
+	want := []string{"alpha", "beta", "shared"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
