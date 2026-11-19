@@ -1,6 +1,9 @@
 package config
 
-import "sort"
+import (
+	"sort"
+	"strings"
+)
 
 // HostFacts contains best-effort static directives declared for a host.
 //
@@ -86,14 +89,7 @@ func stringsJoinArgs(args []string) string {
 	if len(args) == 0 {
 		return ""
 	}
-	if len(args) == 1 {
-		return args[0]
-	}
-	out := args[0]
-	for _, a := range args[1:] {
-		out += " " + a
-	}
-	return out
+	return strings.Join(args, " ")
 }
 
 func sortedFactsKeys(m map[string]HostFacts) []string {

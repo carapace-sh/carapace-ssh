@@ -10,6 +10,7 @@ func TestLookupKeyword(t *testing.T) {
 	}{
 		{name: "Host", canonical: "Host", known: true},
 		{name: "hostname", canonical: "HostName", known: true},
+		{name: "identityagent", canonical: "IdentityAgent", known: true},
 		{name: "  userKnownHostsFile  ", canonical: "UserKnownHostsFile", known: true},
 		{name: "UnknownKeyword", known: false},
 	}
@@ -51,7 +52,7 @@ func TestKeywordsList(t *testing.T) {
 
 	want := map[string]bool{
 		"Host": true, "Match": true, "Include": true, "HostName": true, "User": true, "Port": true,
-		"IdentityFile": true, "CertificateFile": true, "ProxyJump": true, "ProxyCommand": true,
+		"IdentityFile": true, "CertificateFile": true, "IdentityAgent": true, "ProxyJump": true, "ProxyCommand": true,
 		"UserKnownHostsFile": true, "GlobalKnownHostsFile": true,
 	}
 	for _, k := range keywords {

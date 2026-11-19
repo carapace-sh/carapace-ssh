@@ -24,6 +24,7 @@ var keywords = map[string]Keyword{
 	"port":                 {Name: "Port"},
 	"identityfile":         {Name: "IdentityFile"},
 	"certificatefile":      {Name: "CertificateFile"},
+	"identityagent":        {Name: "IdentityAgent"},
 	"proxyjump":            {Name: "ProxyJump"},
 	"proxycommand":         {Name: "ProxyCommand"},
 	"userknownhostsfile":   {Name: "UserKnownHostsFile"},
