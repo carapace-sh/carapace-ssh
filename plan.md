@@ -45,12 +45,13 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 - [x] Additional edge-case coverage and smoke fuzzing:
   - Added tests for `Index.KnownHostsFiles()` excluding `"none"` (declared facts preserved) and for Match `exec="..."` inline/quoted safety with continued indexing.
   - Added known_hosts marker/mixed-token policy tests (revoked excluded; CA/wildcard/negated/hashed filtered to literal hosts; IPv6 extracted raw).
+  - Added config syntax/context tolerance tests (CRLF + continuation, comments/quoting, malformed/binary input, `IndexReader` include base-dir contexts).
   - Ran short fuzz smoke runs: `config` `FuzzIndexReader`, `config` `FuzzParseDirectives`, `knownhosts` `FuzzIndexReader`, `destination` `Fuzz`, `authorizedkeys` `Fuzz` (all passed).
   - Updated `README.md` to note revoked known_hosts exclusion from completable enrichment.
 
 ### Remaining focus
 - Full Match criteria audit/unknown-criterion fallback improvements and additional parsing alignment cases.
-- Broader ssh_config syntax tolerance tests (continuations/comments/CRLF/malformed bytes, explicit `%`/env handling decisions).
+- Broader ssh_config syntax tolerance follow-ups (additional continuation/comment/escape edge cases, explicit `%`/env handling decisions).
 - Include base-dir/context parity matrix and documentation (`-F`, defaults, `IndexReader`/`IndexPaths`, user vs system, conditional include semantics).
 - Static facts contract/tests/docs (known_hosts path semantics, Match-gated association clarity).
 - known_hosts policy/normalization follow-ups (revisit `@cert-authority` literal-host contribution policy, IPv6 form consistency across packages, `none`/multi-path enrichment integration from config-declared paths).
@@ -87,7 +88,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 - Token/env expansion markers (`%...`, `$VAR`) may appear in some values/paths; static parser should treat unexpandable forms as opaque/tolerant (no execution), while preserving existing `~` behavior.
 
 **Plan**
-- [~] Add focused parser tests for continuation/comment/quote/escape combinations and malformed inputs (including binary/odd bytes and truncated lines). *(empty quoted token preservation and existing/fuzz tolerance covered; focused syntax matrix pending)*
+- [x] Add focused parser tests for continuation/comment/quote/escape combinations and malformed inputs (including binary/odd bytes and truncated lines). *(CRLF/continuation, comments/quoting, malformed/binary tolerance, and fuzz coverage added; more corner cases may remain)*
 - [ ] Document and, if needed, refine the completable-host filter contract (what is a literal completion vs declared pattern/negation), keeping `DeclaredHosts()`/facts semantics explicit.
 - [ ] Ensure unexpanded `%` tokens and environment-variable-like forms in statically handled paths/values do not crash parsing and are handled conservatively (no dynamic expansion/evaluation).
 
@@ -104,7 +105,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 
 **Plan**
 - [ ] Define/document include path-resolution rules per context (default user, default system, explicit `-F`, `IndexPaths` source, `IndexReader`) including precedence/fallback behavior for relative paths.
-- [~] Add tests for: system config including `ssh_config.d/*` and nested relative includes, `-F` file with relative/glob/quoted includes, `IndexReader` with/without `Path`/`BaseDir`/`System`, and user/system base-dir expectations. *(substantial coverage exists; parity matrix/documentation pending)*
+- [~] Add tests for: system config including `ssh_config.d/*` and nested relative includes, `-F` file with relative/glob/quoted includes, `IndexReader` with/without `Path`/`BaseDir`/`System`, and user/system base-dir expectations. *(substantial coverage exists, including reader base-dir contexts; parity matrix/documentation pending)* *(substantial coverage exists; parity matrix/documentation pending)*
 - [x] Decide and codify behavior for `Include` inside `Host`/`Match` blocks (recommended: keep conservative follow for completion discovery unless it causes material correctness issues, but make it explicit and regression-tested). *(currently followed for discovery; covered by tests)*
 - [ ] Preserve non-fatal handling for missing/unreadable/no-match includes and deterministic processing of glob results.
 - [ ] Review `~`/path handling in include args (and interactions with quoted/`=` forms); avoid expanding tokens/env in unsafe or surprising ways.
