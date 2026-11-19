@@ -225,6 +225,12 @@ type URI struct {
 	Fragment string
 }
 
+// IsZero reports whether the URI has no significant fields set.
+func (u URI) IsZero() bool {
+	return u.Scheme == "" && u.User == "" && u.Host == "" && u.Port == "" &&
+		u.Path == "" && u.RawQuery == "" && u.Fragment == ""
+}
+
 // ParseURI parses an scp/sftp-style destination URI. It returns ok=false for
 // strings without a recognized URI scheme separator.
 func ParseURI(s string) (URI, bool) {
@@ -293,6 +299,12 @@ type Remote struct {
 	RawQuery string
 	Fragment string
 	URI      bool
+}
+
+// IsZero reports whether the remote destination has no significant fields set.
+func (r Remote) IsZero() bool {
+	return r.Scheme == "" && r.Target.IsZero() && r.Path == "" &&
+		r.RawQuery == "" && r.Fragment == "" && !r.URI
 }
 
 // ParseRemote parses a remote destination from either URI or scp-style syntax.

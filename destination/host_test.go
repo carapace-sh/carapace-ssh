@@ -184,6 +184,8 @@ func TestParseAndFormatURI(t *testing.T) {
 		{"sftp://host/path%20with%20space?download=1#frag", URI{Scheme: "sftp", Host: "host", Path: "/path%20with%20space", RawQuery: "download=1", Fragment: "frag"}, true, "sftp://host/path%20with%20space?download=1#frag"},
 		{"sftp://host?x=1", URI{Scheme: "sftp", Host: "host", Path: "", RawQuery: "x=1"}, true, "sftp://host?x=1"},
 		{"sftp://host/#frag", URI{Scheme: "sftp", Host: "host", Path: "/", Fragment: "frag"}, true, "sftp://host/#frag"},
+		{"ssh://user@host:2222/", URI{Scheme: "ssh", User: "user", Host: "host", Port: "2222", Path: "/"}, true, "ssh://user@host:2222/"},
+		{"scp://host", URI{Scheme: "scp", Host: "host", Path: ""}, true, "scp://host"},
 		{"SFTP://host", URI{Scheme: "sftp", Host: "host", Path: ""}, true, "sftp://host"},
 		{"host:/path", URI{}, false, ""},
 		{"not-a-uri", URI{}, false, ""},
@@ -222,6 +224,8 @@ func TestParseRemote(t *testing.T) {
 	}{
 		{"sftp://alice@example.com:2222/dir", Remote{Scheme: "sftp", Target: Target{User: "alice", Host: "example.com", Port: "2222"}, Path: "/dir", URI: true}, true, "sftp://alice@example.com:2222/dir"},
 		{"scp://host/path", Remote{Scheme: "scp", Target: Target{Host: "host"}, Path: "/path", URI: true}, true, "scp://host/path"},
+		{"ssh://user@host:2222/", Remote{Scheme: "ssh", Target: Target{User: "user", Host: "host", Port: "2222"}, Path: "/", URI: true}, true, "ssh://user@host:2222/"},
+		{"scp://host", Remote{Scheme: "scp", Target: Target{Host: "host"}, Path: "", URI: true}, true, "scp://host"},
 		{"sftp://host/path%20with%20space?download=1#frag", Remote{Scheme: "sftp", Target: Target{Host: "host"}, Path: "/path%20with%20space", RawQuery: "download=1", Fragment: "frag", URI: true}, true, "sftp://host/path%20with%20space?download=1#frag"},
 		{"sftp://host?x=1", Remote{Scheme: "sftp", Target: Target{Host: "host"}, Path: "", RawQuery: "x=1", URI: true}, true, "sftp://host?x=1"},
 		{"user@host:/path", Remote{Target: Target{User: "user", Host: "host"}, Path: "/path"}, true, "user@host:/path"},
