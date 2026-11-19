@@ -926,3 +926,31 @@ Host h-spaced
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }
+
+func TestMatchNegatedCommandAndExecSafety(t *testing.T) {
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "marker.txt")
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Match !command sftp host after-neg-command
+Host neg-command-target
+
+Match !exec "sh -c 'echo x > `+marker+`'"
+Host after-neg-exec
+
+Match exec="sh -c 'echo x > `+marker+`'"
+Host after-inline-exec-eq
+`)
+	idx := mustIndexFile(t, cfg)
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("marker file should not exist, stat err=%v", err)
+	}
+	// !command consumes a value argument and host extraction may continue.
+	// !exec/exec consume opaque command text for safety; later criteria on the
+	// same line may not be recoverable, but indexing must continue safely.
+	got := idx.HostCandidates()
+	want := []string{"after-inline-exec-eq", "after-neg-command", "after-neg-exec", "neg-command-target"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
