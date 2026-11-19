@@ -132,8 +132,9 @@ func IndexPaths(sources []Source, opts ...Option) (*Index, error) {
 		if source.Path == "" {
 			continue
 		}
-		source = makeSource(source.Path, source.BaseDir, o)
-		if err := indexSource(idx, source, o); err != nil && !isNonFatalReadError(err) {
+		resolved := makeSource(source.Path, source.BaseDir, o)
+		resolved.System = source.System
+		if err := indexSource(idx, resolved, o); err != nil && !isNonFatalReadError(err) {
 			errs = append(errs, err)
 		}
 	}
