@@ -97,6 +97,26 @@ func IndexPaths(sources []Source, opts ...Option) (*Index, error) {
 	return idx, nil
 }
 
+// IndexConfig indexes the given config path or, when empty, default user and
+// system configs. This mirrors completer behavior where an explicit -F path is
+// isolated while the default case discovers standard config locations.
+func IndexConfig(path string, opts ...Option) (*Index, error) {
+	if strings.TrimSpace(path) == "" {
+		return IndexDefault(opts...)
+	}
+	return IndexFile(path, opts...)
+}
+
+// HostCandidates returns filtered, deduplicated, sorted host candidates from
+// the given config path or default configs when path is empty.
+func HostCandidates(path string, opts ...Option) ([]string, error) {
+	idx, err := IndexConfig(path, opts...)
+	if idx == nil {
+		return []string{}, err
+	}
+	return idx.HostCandidates(), err
+}
+
 // IndexReader indexes ssh_config content from a reader using the provided source
 // context for include resolution. The source Path, when set, is used to avoid
 // re-indexing the same logical file in include cycles.

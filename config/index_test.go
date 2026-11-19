@@ -267,6 +267,42 @@ func TestIndexPaths(t *testing.T) {
 	}
 }
 
+func TestIndexConvenienceAndHostCandidates(t *testing.T) {
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	userCfg := filepath.Join(home, ".ssh", "config")
+	sysCfg := filepath.Join(dir, "etc", "ssh", "ssh_config")
+	explicit := filepath.Join(dir, "explicit.conf")
+
+	writeFile(t, userCfg, "Host user-only\n")
+	writeFile(t, sysCfg, "Host system-only\n")
+	writeFile(t, explicit, "Host explicit-only\n")
+
+	got, err := HostCandidates(explicit, WithHomeDir(home), WithUserConfigPath(userCfg), WithSystemConfigPath(sysCfg))
+	if err != nil {
+		t.Fatalf("HostCandidates(explicit): %v", err)
+	}
+	if want := []string{"explicit-only"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates(explicit) = %#v, want %#v", got, want)
+	}
+
+	got, err = HostCandidates("", WithHomeDir(home), WithUserConfigPath(userCfg), WithSystemConfigPath(sysCfg))
+	if err != nil {
+		t.Fatalf("HostCandidates(default): %v", err)
+	}
+	if want := []string{"system-only", "user-only"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates(default) = %#v, want %#v", got, want)
+	}
+
+	idx, err := IndexConfig("   ", WithHomeDir(home), WithUserConfigPath(userCfg), WithSystemConfigPath(sysCfg))
+	if err != nil {
+		t.Fatalf("IndexConfig(whitespace): %v", err)
+	}
+	if want := []string{"system-only", "user-only"}; !reflect.DeepEqual(idx.HostCandidates(), want) {
+		t.Fatalf("IndexConfig(whitespace).HostCandidates() = %#v, want %#v", idx.HostCandidates(), want)
+	}
+}
+
 func TestSyntaxTolerance(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
