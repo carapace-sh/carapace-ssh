@@ -155,9 +155,8 @@ func DiscoverDefaultKeyPairs(home string) ([]KeyPair, error) {
 }
 
 // AgentSocketPaths returns deduplicated candidate SSH agent socket paths from
-// environment variables in priority order (SSH_AUTH_SOCK, SSH_AGENT_PID not
-// expanded to a socket path). It does not probe sockets, execute programs, or
-// access the network.
+// environment variables in priority order (currently SSH_AUTH_SOCK). It does
+// not probe sockets, execute programs, or access the network.
 func AgentSocketPaths(lookup func(string) string) []string {
 	if lookup == nil {
 		lookup = os.Getenv
@@ -176,6 +175,12 @@ func AgentSocketPaths(lookup func(string) string) []string {
 		out = append(out, val)
 	}
 	return out
+}
+
+// DefaultAgentSocketPaths returns candidate SSH agent socket paths from the
+// current process environment.
+func DefaultAgentSocketPaths() []string {
+	return AgentSocketPaths(os.Getenv)
 }
 
 // PublicKeyPath returns the conventional public key path for a private key path.

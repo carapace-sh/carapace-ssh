@@ -167,8 +167,9 @@ func TestAgentSocketPaths(t *testing.T) {
 		t.Fatalf("AgentSocketPaths(empty) = %#v, want empty", got)
 	}
 
-	got = AgentSocketPaths(nil)
-	_ = got
+	if got := DefaultAgentSocketPaths(); got == nil {
+		t.Fatal("DefaultAgentSocketPaths() = nil, want non-nil slice")
+	}
 }
 
 func TestDiscoverKeyPairs(t *testing.T) {

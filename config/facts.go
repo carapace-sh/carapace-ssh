@@ -15,6 +15,7 @@ type HostFacts struct {
 	CertificateFiles      []string
 	ProxyJump             string
 	ProxyCommand          string
+	IdentityAgent         string
 	UserKnownHostsFiles   []string
 	GlobalKnownHostsFiles []string
 }
@@ -28,6 +29,7 @@ func cloneFacts(f HostFacts) HostFacts {
 		CertificateFiles:      append([]string(nil), f.CertificateFiles...),
 		ProxyJump:             f.ProxyJump,
 		ProxyCommand:          f.ProxyCommand,
+		IdentityAgent:         f.IdentityAgent,
 		UserKnownHostsFiles:   append([]string(nil), f.UserKnownHostsFiles...),
 		GlobalKnownHostsFiles: append([]string(nil), f.GlobalKnownHostsFiles...),
 	}
@@ -53,6 +55,8 @@ func (f *HostFacts) addDirective(keyword string, args []string) {
 		f.ProxyJump = value
 	case "proxycommand":
 		f.ProxyCommand = stringsJoinArgs(args)
+	case "identityagent":
+		f.IdentityAgent = value
 	case "userknownhostsfile":
 		f.UserKnownHostsFiles = appendUnique(f.UserKnownHostsFiles, args...)
 	case "globalknownhostsfile":

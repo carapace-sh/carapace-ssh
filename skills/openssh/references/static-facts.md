@@ -19,6 +19,7 @@ The ssh_config index/model retains statically present directive facts and expose
 | `CertificateFile` | Host-aware certificate suggestions. |
 | `ProxyJump` | Suggest jump hosts / multi-hop targets. |
 | `ProxyCommand` | Context for proxy-related completion (static presence/value). |
+| `IdentityAgent` | Declared agent socket/path hint for agent-aware completion context. |
 | `UserKnownHostsFile` | Locate known_hosts sources per host context (when statically declared). |
 | `GlobalKnownHostsFile` | Locate system known_hosts sources per host context. |
 

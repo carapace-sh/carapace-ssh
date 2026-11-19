@@ -454,6 +454,7 @@ Host foo bar
   CertificateFile ~/.ssh/foo-cert.pub
   ProxyJump jump.example
   ProxyCommand ssh -W %h:%p jump.example
+  IdentityAgent ~/.ssh/agent.sock
   UserKnownHostsFile ~/.ssh/known_hosts.custom ~/.ssh/known_hosts.shared
   GlobalKnownHostsFile /etc/ssh/known_hosts.custom
 
@@ -487,6 +488,9 @@ Match exec "echo hi"
 	}
 	if f.ProxyCommand != "ssh -W %h:%p jump.example" {
 		t.Fatalf("foo ProxyCommand = %#v", f.ProxyCommand)
+	}
+	if f.IdentityAgent != "~/.ssh/agent.sock" {
+		t.Fatalf("foo IdentityAgent = %#v", f.IdentityAgent)
 	}
 	if !reflect.DeepEqual(f.UserKnownHostsFiles, []string{"~/.ssh/known_hosts.custom", "~/.ssh/known_hosts.shared"}) {
 		t.Fatalf("foo UserKnownHostsFiles = %#v", f.UserKnownHostsFiles)

@@ -115,7 +115,7 @@ See [option-metadata.md](option-metadata.md).
 - `authorized_keys` parsing for relevant tooling.
 - Opt-in strict resolution via `ssh -G` (explicit opt-in only, never default completion path).
 
-**Current progress:** destination helpers (including ProxyJump/URI forms with query/fragment preservation), fuzz tests (`config`, `knownhosts`, `destination`, `authorizedkeys`), completion-safe key discovery/pairing, base-name helpers, and agent socket path hints (`key`), tolerant `authorized_keys` parsing (`authorizedkeys`), and opt-in strict `ssh -G` resolution (`resolve`) are implemented. Further refinements and integration validation remain as needed.
+**Current progress:** destination helpers (including ProxyJump/URI forms with query/fragment preservation), fuzz tests (`config`, `knownhosts`, `destination`, `authorizedkeys`), completion-safe key discovery/pairing, base-name helpers, and agent socket path hint helpers (`key`), tolerant `authorized_keys` parsing (`authorizedkeys`), opt-in strict `ssh -G` resolution (`resolve`), and additional static fact collection such as `IdentityAgent` are implemented. Further refinements and integration validation remain as needed.
 
 ## Definition of done (MVP)
 
