@@ -640,3 +640,51 @@ func TestUnreadableEntryIsNonFatal(t *testing.T) {
 		t.Fatalf("IndexDefault HostCandidates() = %#v, want empty", got)
 	}
 }
+
+func TestKnownHostsFilesExcludesNone(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Host a
+  UserKnownHostsFile none ~/.ssh/known_hosts.a
+  GlobalKnownHostsFile /etc/ssh/kh_global NONE
+
+Host b
+  UserKnownHostsFile ~/.ssh/known_hosts.b
+`)
+
+	idx := mustIndexFile(t, cfg)
+	if got, want := idx.KnownHostsFiles(), []string{"/etc/ssh/kh_global", "~/.ssh/known_hosts.a", "~/.ssh/known_hosts.b"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("KnownHostsFiles() = %#v, want %#v", got, want)
+	}
+	// Declared facts preserve values as written.
+	if got := idx.Facts("a").UserKnownHostsFiles; !reflect.DeepEqual(got, []string{"none", "~/.ssh/known_hosts.a"}) {
+		t.Fatalf("Facts(a).UserKnownHostsFiles = %#v", got)
+	}
+}
+
+func TestMatchExecInlineAndQuotedFormsDoNotExecute(t *testing.T) {
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "marker.txt")
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Match exec="sh -c 'echo x > `+marker+`'"
+Host after-inline-exec
+
+Match exec "sh -c \"echo x > `+marker+`\"" originalhost quoted-exec-host
+Host after-quoted-exec
+`)
+	// Note: exec consumes its command argument opaquely; hosts in the same Match
+	// line after exec may not be recoverable without execution semantics. Safety
+	// and continued indexing are the required guarantees.
+
+	idx := mustIndexFile(t, cfg)
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("marker file should not exist, stat err=%v", err)
+	}
+	got := idx.HostCandidates()
+	want := []string{"after-inline-exec", "after-quoted-exec"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}

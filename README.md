@@ -10,7 +10,7 @@
 - Tolerate unknown keywords/Match criteria and malformed lines where possible.
 - Support explicit config paths (`-F` semantics) and default user/system config discovery.
 - Expose best-effort static per-host facts without dynamic Match evaluation.
-- Parse known_hosts files for completable host enrichment and merging.
+- Parse known_hosts files for completable host enrichment and merging (skips hashed and revoked hosts).
 - Provide OpenSSH keyword and Match criterion metadata for tolerant parsing.
 - Parse/format destination helpers for host/port, user@host, scp remote separators, ProxyJump hops, sftp/scp URI forms, and remote destination parsing.
 - Provide completion-safe identity file discovery/pairing helpers.

@@ -152,3 +152,25 @@ func TestUnreadableKnownHostsIsNonFatal(t *testing.T) {
 		t.Fatalf("HostCandidates() = %#v, want empty", got)
 	}
 }
+
+func TestMarkerAndMixedHostTokenPolicies(t *testing.T) {
+	idx, err := IndexReader(strings.NewReader(`
+@revoked revoked-only.example ssh-ed25519 AAAA
+@revoked revoked.example,still-revoked.example ssh-rsa AAAA
+@cert-authority *.wild.example ssh-rsa AAAA
+@cert-authority ca-literal.example,*.wild.example ssh-rsa AAAA
+mixed.example,*.wild.example,!neg.example,[2001:db8::2]:22 ssh-ed25519 AAAA
+|1|hash|hash ssh-rsa AAAA
+`))
+	if err != nil {
+		t.Fatalf("IndexReader(): %v", err)
+	}
+	// Revoked entries are never suggested. CA entries may contribute explicit
+	// literal hosts, but wildcard-only scopes do not. Mixed lists keep only
+	// literal, non-negated, non-wildcard, non-hashed hosts (IPv6 extracted raw).
+	got := idx.HostCandidates()
+	want := []string{"2001:db8::2", "ca-literal.example", "mixed.example"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
