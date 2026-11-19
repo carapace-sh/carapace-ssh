@@ -978,3 +978,25 @@ Host h2
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }
+
+func TestMatchUnknownCriterionFallbackPreservesKnownHosts(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Match unknowncriterion host ok1
+Host h1
+
+Match unknowncriterion=value host ok2 originalhost ok3
+Host h2
+
+Match unknowncriterion = value host ok4
+Host h3
+
+Match unknowncriterion unknownvalue host ok5
+Host h4
+`)
+	idx := mustIndexFile(t, cfg)
+	if got, want := idx.HostCandidates(), []string{"h1", "h2", "h3", "h4", "ok1", "ok2", "ok3", "ok4", "ok5"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
