@@ -224,6 +224,29 @@ func TestExplicitConfigDoesNotMergeDefaults(t *testing.T) {
 	}
 }
 
+func TestSystemConfigDropInIncludes(t *testing.T) {
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	sysCfg := filepath.Join(dir, "etc", "ssh", "ssh_config")
+	dropIn := filepath.Join(dir, "etc", "ssh", "ssh_config.d", "10-example.conf")
+	writeFile(t, dropIn, "Host dropin-host\n")
+	writeFile(t, sysCfg, "Host system-host\nInclude ssh_config.d/*.conf\n")
+
+	idx, err := IndexDefault(
+		WithHomeDir(home),
+		WithUserConfigPath(filepath.Join(home, ".ssh", "config")),
+		WithSystemConfigPath(sysCfg),
+	)
+	if err != nil {
+		t.Fatalf("IndexDefault(): %v", err)
+	}
+	got := idx.HostCandidates()
+	want := []string{"dropin-host", "system-host"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
 func TestIndexDefaultIncludesUserAndSystem(t *testing.T) {
 	dir := t.TempDir()
 	home := filepath.Join(dir, "home")
@@ -264,6 +287,43 @@ func TestIndexPaths(t *testing.T) {
 	want := []string{"alpha", "beta", "shared"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
+func TestIndexPathsSkipsEmptySourcePath(t *testing.T) {
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	a := filepath.Join(dir, "a.conf")
+	writeFile(t, a, "Host alpha\n")
+
+	idx, err := IndexPaths([]Source{{}, {Path: a}}, WithHomeDir(home))
+	if err != nil {
+		t.Fatalf("IndexPaths(): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"alpha"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
+func TestDefaultSources(t *testing.T) {
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	userCfg := filepath.Join(home, ".ssh", "config")
+	sysCfg := filepath.Join(dir, "etc", "ssh", "ssh_config")
+
+	sources := DefaultSources(WithHomeDir(home), WithUserConfigPath(userCfg), WithSystemConfigPath(sysCfg))
+	want := []Source{
+		{Path: userCfg, BaseDir: filepath.Join(home, ".ssh"), System: false},
+		{Path: sysCfg, BaseDir: filepath.Join(dir, "etc", "ssh"), System: true},
+	}
+	if !reflect.DeepEqual(sources, want) {
+		t.Fatalf("DefaultSources() = %#v, want %#v", sources, want)
+	}
+
+	sources = DefaultSources(WithHomeDir(home), WithUserConfigPath(""), WithSystemConfigPath(sysCfg))
+	want = []Source{{Path: sysCfg, BaseDir: filepath.Join(dir, "etc", "ssh"), System: true}}
+	if !reflect.DeepEqual(sources, want) {
+		t.Fatalf("DefaultSources(user empty) = %#v, want %#v", sources, want)
 	}
 }
 
@@ -394,11 +454,12 @@ Host foo bar
   CertificateFile ~/.ssh/foo-cert.pub
   ProxyJump jump.example
   ProxyCommand ssh -W %h:%p jump.example
-  UserKnownHostsFile ~/.ssh/known_hosts.custom
+  UserKnownHostsFile ~/.ssh/known_hosts.custom ~/.ssh/known_hosts.shared
   GlobalKnownHostsFile /etc/ssh/known_hosts.custom
 
 Host baz
   HostName baz.internal
+  GlobalKnownHostsFile /etc/ssh/known_hosts.shared /etc/ssh/known_hosts.custom
 
 Match host prod originalhost=prod.example user deploy
   User produser
@@ -427,7 +488,7 @@ Match exec "echo hi"
 	if f.ProxyCommand != "ssh -W %h:%p jump.example" {
 		t.Fatalf("foo ProxyCommand = %#v", f.ProxyCommand)
 	}
-	if !reflect.DeepEqual(f.UserKnownHostsFiles, []string{"~/.ssh/known_hosts.custom"}) {
+	if !reflect.DeepEqual(f.UserKnownHostsFiles, []string{"~/.ssh/known_hosts.custom", "~/.ssh/known_hosts.shared"}) {
 		t.Fatalf("foo UserKnownHostsFiles = %#v", f.UserKnownHostsFiles)
 	}
 	if !reflect.DeepEqual(f.GlobalKnownHostsFiles, []string{"/etc/ssh/known_hosts.custom"}) {
@@ -451,6 +512,10 @@ Match exec "echo hi"
 	wantHosts := []string{"bar", "baz", "foo", "gated", "prod", "prod.example"}
 	if !reflect.DeepEqual(hosts, wantHosts) {
 		t.Fatalf("HostsWithFacts() = %#v, want %#v", hosts, wantHosts)
+	}
+
+	if got, want := idx.KnownHostsFiles(), []string{"/etc/ssh/known_hosts.custom", "/etc/ssh/known_hosts.shared", "~/.ssh/known_hosts.custom", "~/.ssh/known_hosts.shared"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("KnownHostsFiles() = %#v, want %#v", got, want)
 	}
 
 	if facts := idx.Facts("unknown"); !reflect.DeepEqual(facts, HostFacts{}) {

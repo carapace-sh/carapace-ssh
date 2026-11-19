@@ -1,6 +1,9 @@
 package option
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
 // Keyword describes basic metadata for an ssh_config keyword.
 type Keyword struct {
@@ -37,4 +40,14 @@ func LookupKeyword(name string) (Keyword, bool) {
 func IsKnownKeyword(name string) bool {
 	_, ok := LookupKeyword(name)
 	return ok
+}
+
+// Keywords returns known keywords sorted by canonical name.
+func Keywords() []Keyword {
+	out := make([]Keyword, 0, len(keywords))
+	for _, k := range keywords {
+		out = append(out, k)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
 }

@@ -1,6 +1,9 @@
 package destination
 
-import "strings"
+import (
+	"net/url"
+	"strings"
+)
 
 // HostPort represents a host and optional port.
 type HostPort struct {
@@ -160,4 +163,157 @@ func isWindowsDrivePath(s string) bool {
 		return false
 	}
 	return s[1] == ':'
+}
+
+// SplitProxyJump splits a ProxyJump specification into hop strings.
+func SplitProxyJump(s string) []string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return []string{}
+	}
+	parts := strings.Split(s, ",")
+	hops := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		hops = append(hops, part)
+	}
+	return hops
+}
+
+// ParseProxyJump parses a ProxyJump specification into hop targets.
+func ParseProxyJump(s string) []Target {
+	parts := SplitProxyJump(s)
+	if len(parts) == 0 {
+		return []Target{}
+	}
+	targets := make([]Target, 0, len(parts))
+	for _, part := range parts {
+		targets = append(targets, ParseTarget(part))
+	}
+	return targets
+}
+
+// JoinProxyJump joins hop targets into a ProxyJump specification.
+func JoinProxyJump(hops []Target) string {
+	formatted := make([]string, 0, len(hops))
+	for _, hop := range hops {
+		s := FormatTarget(hop)
+		if s == "" {
+			continue
+		}
+		formatted = append(formatted, s)
+	}
+	return strings.Join(formatted, ",")
+}
+
+// URI represents a remote destination URI (e.g. sftp://user@host:port/path).
+type URI struct {
+	Scheme string
+	User   string
+	Host   string
+	Port   string
+	Path   string
+}
+
+// ParseURI parses an scp/sftp-style destination URI. It returns ok=false for
+// strings without a recognized URI scheme separator.
+func ParseURI(s string) (URI, bool) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return URI{}, false
+	}
+	idx := strings.Index(s, "://")
+	if idx <= 0 {
+		return URI{}, false
+	}
+	scheme := strings.ToLower(s[:idx])
+	u, err := url.Parse(s)
+	if err != nil || u == nil || u.Host == "" {
+		return URI{}, false
+	}
+	parsed := URI{
+		Scheme: scheme,
+		Host:   u.Hostname(),
+		Port:   u.Port(),
+		Path:   u.Path,
+	}
+	if u.User != nil {
+		parsed.User = u.User.Username()
+	}
+	return parsed, true
+}
+
+// FormatURI formats a destination URI. It returns an empty string when scheme or
+// host is missing.
+func FormatURI(u URI) string {
+	scheme := strings.ToLower(strings.TrimSpace(u.Scheme))
+	host := strings.TrimSpace(u.Host)
+	if scheme == "" || host == "" {
+		return ""
+	}
+	out := scheme + "://"
+	if user := strings.TrimSpace(u.User); user != "" {
+		out += user + "@"
+	}
+	out += FormatHostPort(host, u.Port)
+	path := u.Path
+	if path != "" && !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	out += path
+	return out
+}
+
+// Remote represents a parsed remote destination in URI or scp-style form.
+type Remote struct {
+	Scheme string
+	Target Target
+	Path   string
+	URI    bool
+}
+
+// ParseRemote parses a remote destination from either URI or scp-style syntax.
+// It returns ok=false for local paths without a remote host separator.
+func ParseRemote(s string) (Remote, bool) {
+	if uri, ok := ParseURI(s); ok {
+		return Remote{
+			Scheme: uri.Scheme,
+			Target: Target{User: uri.User, Host: uri.Host, Port: uri.Port},
+			Path:   uri.Path,
+			URI:    true,
+		}, true
+	}
+
+	target, path, ok := SplitSCPRemote(s)
+	if !ok {
+		return Remote{}, false
+	}
+	return Remote{
+		Target: ParseTarget(target),
+		Path:   path,
+	}, true
+}
+
+// FormatRemote formats a remote destination. URI remotes are formatted as URIs;
+// scp-style remotes are formatted as target:path.
+func FormatRemote(r Remote) string {
+	if r.URI {
+		return FormatURI(URI{Scheme: r.Scheme, User: r.Target.User, Host: r.Target.Host, Port: r.Target.Port, Path: r.Path})
+	}
+	return FormatTarget(r.Target) + ":" + r.Path
+}
+
+// IsURI reports whether s parses as a destination URI.
+func IsURI(s string) bool {
+	_, ok := ParseURI(s)
+	return ok
+}
+
+// IsRemote reports whether s parses as a remote destination (URI or scp-style).
+func IsRemote(s string) bool {
+	_, ok := ParseRemote(s)
+	return ok
 }

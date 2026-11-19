@@ -82,6 +82,25 @@ func TestIndexReaderAndMerge(t *testing.T) {
 	}
 }
 
+func TestDefaultPaths(t *testing.T) {
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	user := filepath.Join(home, ".ssh", "known_hosts")
+	sys := filepath.Join(dir, "etc", "ssh", "ssh_known_hosts")
+
+	got := DefaultPaths(WithHomeDir(home), WithSystemKnownHostsPath(sys))
+	want := []string{user, sys}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("DefaultPaths() = %#v, want %#v", got, want)
+	}
+
+	got = DefaultPaths(WithUserKnownHostsPath("/custom/user_known_hosts"), WithSystemKnownHostsPath(""))
+	want = []string{"/custom/user_known_hosts"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("DefaultPaths(custom) = %#v, want %#v", got, want)
+	}
+}
+
 func TestMissingKnownHostsIsNonFatal(t *testing.T) {
 	idx, err := IndexFile(filepath.Join(t.TempDir(), "missing-known_hosts"))
 	if err != nil {

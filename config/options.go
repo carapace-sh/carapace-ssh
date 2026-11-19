@@ -93,3 +93,19 @@ func (o indexOptions) defaultUserSource() Source {
 func (o indexOptions) defaultSystemSource() Source {
 	return Source{Path: o.systemConfigPath, BaseDir: filepath.Dir(o.systemConfigPath), System: true}
 }
+
+// DefaultSources returns default user and system config sources in order.
+func DefaultSources(opts ...Option) []Source {
+	o := defaultOptions()
+	for _, opt := range opts {
+		opt(&o)
+	}
+	sources := make([]Source, 0, 2)
+	if s := o.defaultUserSource(); s.Path != "" {
+		sources = append(sources, s)
+	}
+	if s := o.defaultSystemSource(); s.Path != "" {
+		sources = append(sources, s)
+	}
+	return sources
+}

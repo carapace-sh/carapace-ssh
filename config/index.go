@@ -57,6 +57,29 @@ func (i *Index) HostsWithFacts() []string {
 	return sortedFactsKeys(i.facts)
 }
 
+// KnownHostsFiles returns deduplicated, sorted UserKnownHostsFile and
+// GlobalKnownHostsFile paths declared in collected static facts.
+func (i *Index) KnownHostsFiles() []string {
+	if i == nil {
+		return []string{}
+	}
+	paths := map[string]struct{}{}
+	for _, host := range sortedFactsKeys(i.facts) {
+		f := i.facts[host]
+		for _, p := range f.UserKnownHostsFiles {
+			if p != "" {
+				paths[p] = struct{}{}
+			}
+		}
+		for _, p := range f.GlobalKnownHostsFiles {
+			if p != "" {
+				paths[p] = struct{}{}
+			}
+		}
+	}
+	return sortedUniqueHosts(paths)
+}
+
 // IndexFile indexes a single explicit config file as the entry point.
 // It does not implicitly merge user/system defaults, but follows Include directives
 // found in the file.
@@ -106,11 +129,10 @@ func IndexPaths(sources []Source, opts ...Option) (*Index, error) {
 	idx := newIndex()
 	var errs []error
 	for _, source := range sources {
-		if source.Path != "" {
-			source = makeSource(source.Path, source.BaseDir, o)
-		} else if source.BaseDir == "" && !source.System && o.homeDir != "" {
-			source.BaseDir = filepath.Join(o.homeDir, ".ssh")
+		if source.Path == "" {
+			continue
 		}
+		source = makeSource(source.Path, source.BaseDir, o)
 		if err := indexSource(idx, source, o); err != nil && !isNonFatalReadError(err) {
 			errs = append(errs, err)
 		}

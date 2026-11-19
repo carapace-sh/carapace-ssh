@@ -1,8 +1,10 @@
 # Option, Keyword, and Match Metadata
 
-Planned shared metadata for OpenSSH config keywords, CLI options, and Match criteria (Phase 5). Provides a source of truth for tolerant parsing, token skipping, and option completion.
+Shared metadata for OpenSSH config keywords and Match criteria (Phase 5). Provides a source of truth for tolerant parsing, token skipping, and future option completion reuse.
 
 > **Source of truth**: [plan.md](../../../plan.md), Phase 5.
+
+The `option` package currently provides keyword/criterion normalization and lookup helpers, argument-kind metadata for Match criteria, host-extraction markers, and list APIs (`Keywords`, `MatchCriteria`) used by config parsing.
 
 ## Goals
 

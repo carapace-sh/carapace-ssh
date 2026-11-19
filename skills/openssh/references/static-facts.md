@@ -1,12 +1,12 @@
 # Static Per-Host Facts
 
-Planned extraction of useful declared directives per host/block without dynamic evaluation (Phase 4). Enables richer completion (identity files, users, ports, jump hosts) while staying completion-safe.
+Extraction of useful declared directives per host/block without dynamic evaluation (Phase 4). Enables richer completion (identity files, users, ports, jump hosts) while staying completion-safe.
 
 > **Source of truth**: [plan.md](../../../plan.md), Phase 4.
 
 ## Goal
 
-Extend the ssh_config index/model to retain statically present directive facts and expose query APIs for best-effort per-host information. This must **not** attempt `ssh -G` parity or runtime condition evaluation.
+The ssh_config index/model retains statically present directive facts and exposes query APIs (`Facts`, `HostsWithFacts`, `KnownHostsFiles`) for best-effort per-host information. This does **not** attempt `ssh -G` parity or runtime condition evaluation.
 
 ## Candidate directives to retain (initial)
 

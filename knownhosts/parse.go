@@ -8,6 +8,7 @@ import (
 
 func parseReader(r io.Reader, add func(string)) error {
 	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	for scanner.Scan() {
 		parseLine(scanner.Text(), add)
 	}

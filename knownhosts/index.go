@@ -85,23 +85,7 @@ func isNonFatalReadError(err error) bool {
 
 // IndexDefault indexes default user and system known_hosts files.
 func IndexDefault(opts ...Option) (*Index, error) {
-	o := defaultOptions()
-	for _, opt := range opts {
-		opt(&o)
-	}
-	paths := []string{}
-	if p := o.defaultUserKnownHostsPath(); p != "" {
-		paths = append(paths, p)
-	}
-	if o.systemKnownHostsPath != "" {
-		paths = append(paths, o.systemKnownHostsPath)
-	}
-	return IndexPaths(paths,
-		WithHomeDir(o.homeDir),
-		WithReadFile(o.readFile),
-		WithUserKnownHostsPath(o.defaultUserKnownHostsPath()),
-		WithSystemKnownHostsPath(o.systemKnownHostsPath),
-	)
+	return IndexPaths(DefaultPaths(opts...), opts...)
 }
 
 // IndexReader indexes known_hosts content from a reader.

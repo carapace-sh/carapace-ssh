@@ -39,6 +39,22 @@ func WithReadFile(fn func(string) ([]byte, error)) Option {
 	return func(o *indexOptions) { o.readFile = fn }
 }
 
+// DefaultPaths returns default user and system known_hosts paths in order.
+func DefaultPaths(opts ...Option) []string {
+	o := defaultOptions()
+	for _, opt := range opts {
+		opt(&o)
+	}
+	paths := make([]string, 0, 2)
+	if p := o.defaultUserKnownHostsPath(); p != "" {
+		paths = append(paths, p)
+	}
+	if o.systemKnownHostsPath != "" {
+		paths = append(paths, o.systemKnownHostsPath)
+	}
+	return paths
+}
+
 func defaultOptions() indexOptions {
 	home, _ := os.UserHomeDir()
 	return indexOptions{

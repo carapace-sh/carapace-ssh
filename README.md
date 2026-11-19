@@ -9,8 +9,13 @@
 - Follow `Include` directives with globbing, recursion, cycle detection, and `~` expansion.
 - Tolerate unknown keywords/Match criteria and malformed lines where possible.
 - Support explicit config paths (`-F` semantics) and default user/system config discovery.
-- Parse known_hosts files for completable host enrichment (initial Phase 3 support).
-- Parse/format destination helpers for host, port, user@host, and scp remote forms (initial Phase 6 support).
+- Expose best-effort static per-host facts without dynamic Match evaluation.
+- Parse known_hosts files for completable host enrichment and merging.
+- Provide OpenSSH keyword and Match criterion metadata for tolerant parsing.
+- Parse/format destination helpers for host/port, user@host, scp remote separators, ProxyJump hops, sftp/scp URI forms, and remote destination parsing.
+- Provide completion-safe identity file discovery/pairing helpers.
+- Provide tolerant `authorized_keys` parsing helpers.
+- Provide an opt-in strict resolution path via `ssh -G` (outside default completion paths).
 
 ## Completion-safety guarantees
 

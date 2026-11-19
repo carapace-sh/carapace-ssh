@@ -1,12 +1,12 @@
 # known_hosts Parsing and Host Enrichment
 
-Planned support for enriching completable hosts from OpenSSH `known_hosts` files (Phase 3). This extends host sources beyond ssh_config declarations.
+Support for enriching completable hosts from OpenSSH `known_hosts` files (Phase 3). This extends host sources beyond ssh_config declarations.
 
 > **Source of truth**: [plan.md](../../../plan.md), Phase 3.
 
 ## Goal
 
-Provide a `knownhosts` package that can parse known_hosts content, expose completable hostnames/ports, and merge/dedup them with config-declared hosts without side effects.
+The `knownhosts` package parses known_hosts content, exposes completable host candidates, and provides merge/dedup helpers for combining them with config-declared hosts without side effects. It also supports configurable/default path discovery (`DefaultPaths`, `IndexDefault`) and tolerant, non-fatal handling of missing/unreadable files.
 
 ## Line forms to handle
 

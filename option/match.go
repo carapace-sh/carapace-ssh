@@ -1,6 +1,9 @@
 package option
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
 // MatchArgKind describes how a Match criterion consumes arguments.
 type MatchArgKind int
@@ -35,6 +38,7 @@ var matchCriteria = map[string]MatchCriterion{
 	"rdomain":      {Name: "rdomain", Kind: MatchArgValue},
 	"localport":    {Name: "localport", Kind: MatchArgValue},
 	"remoteport":   {Name: "remoteport", Kind: MatchArgValue},
+	"version":      {Name: "version", Kind: MatchArgValue},
 }
 
 // LookupMatchCriterion returns metadata for a Match criterion.
@@ -57,4 +61,14 @@ func IsKnownMatchCriterion(name string) bool {
 func IsZeroArgMatchCriterion(name string) bool {
 	c, ok := LookupMatchCriterion(name)
 	return ok && c.Kind == MatchArgNone
+}
+
+// MatchCriteria returns known Match criteria sorted by name.
+func MatchCriteria() []MatchCriterion {
+	out := make([]MatchCriterion, 0, len(matchCriteria))
+	for _, c := range matchCriteria {
+		out = append(out, c)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
 }

@@ -18,6 +18,7 @@ func TestLookupMatchCriterion(t *testing.T) {
 		{name: "canonical", kind: MatchArgNone, known: true, zeroArg: true},
 		{name: "final", kind: MatchArgNone, known: true, zeroArg: true},
 		{name: "user", kind: MatchArgValue, known: true},
+		{name: "version", kind: MatchArgValue, known: true},
 		{name: "unknowncriterion", known: false},
 	}
 
@@ -38,5 +39,26 @@ func TestLookupMatchCriterion(t *testing.T) {
 		if got := IsZeroArgMatchCriterion(tt.name); got != tt.zeroArg {
 			t.Fatalf("IsZeroArgMatchCriterion(%q)=%v, want %v", tt.name, got, tt.zeroArg)
 		}
+	}
+}
+
+func TestMatchCriteriaList(t *testing.T) {
+	criteria := MatchCriteria()
+	if len(criteria) == 0 {
+		t.Fatal("MatchCriteria() returned empty list")
+	}
+	for i := 1; i < len(criteria); i++ {
+		if criteria[i-1].Name > criteria[i].Name {
+			t.Fatalf("MatchCriteria() not sorted: %#v", criteria)
+		}
+	}
+	foundVersion := false
+	for _, c := range criteria {
+		if c.Name == "version" {
+			foundVersion = true
+		}
+	}
+	if !foundVersion {
+		t.Fatal("MatchCriteria() missing version")
 	}
 }

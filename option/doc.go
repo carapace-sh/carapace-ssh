@@ -1,7 +1,6 @@
-// Package option will provide OpenSSH config keyword, option, and Match
-// criterion metadata for parsing and completion.
+// Package option provides OpenSSH config keyword and Match criterion metadata
+// for parsing and completion.
 //
-// Planned capabilities (Phase 5): canonical keywords/aliases, argument/value
-// metadata, and Match criterion arity/forms to improve tolerant parsing and
-// option completion.
+// It exposes keyword and Match criterion lookup helpers, including argument kind
+// and host-extraction metadata used by tolerant ssh_config parsing.
 package option

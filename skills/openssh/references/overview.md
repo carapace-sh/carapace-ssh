@@ -115,6 +115,8 @@ See [option-metadata.md](option-metadata.md).
 - `authorized_keys` parsing for relevant tooling.
 - Opt-in strict resolution via `ssh -G` (explicit opt-in only, never default completion path).
 
+**Current progress:** initial destination helpers (including ProxyJump/URI forms), fuzz tests (`config`, `knownhosts`, `destination`), completion-safe key discovery/pairing (`key`), tolerant `authorized_keys` parsing (`authorizedkeys`), and opt-in strict `ssh -G` resolution (`resolve`) are implemented. Further refinements and integration validation remain as needed.
+
 ## Definition of done (MVP)
 
 - `carapace-ssh` can index ssh_config (explicit and default paths) and return host candidates including those gated by `Match exec`/`Match originalhost`/other non-evaluable criteria, without executing commands.
