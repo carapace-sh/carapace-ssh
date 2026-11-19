@@ -208,6 +208,6 @@ Initial driver: [carapace-bin#3935](https://github.com/carapace-sh/carapace-bin/
 
 - **Phase 0 (Bootstrap):** complete — module, MIT license, README, AGENTS, and initial config package added.
 - **Phase 1 (MVP tolerant ssh_config indexer & host candidates):** initial implementation landed — config parsing, Match host/originalhost extraction without execution, Include resolution (glob/relative/quoted/`=`/tilde/cycles/non-fatal missing), explicit/default source helpers (`IndexFile`, `IndexDefault`, `IndexPaths`, `IndexReader`, `IndexConfig`, `HostCandidates`), deterministic filtered and declared host candidates, and tests including safety/non-execution and #3935-style cases.
-- **Phase 2 (carapace-bin integration):** not started in this repository (requires changes in carapace-bin).
+- **Phase 2 (carapace-bin integration):** initial integration prepared in sibling `../carapace-bin` branch `carapace-ssh-hosts` (delegates `ssh.ActionHosts` to `carapace-ssh`, removes legacy ssh_config dependency, updates sftp host completion, adds regression tests). Further validation/release integration remains in carapace-bin.
 - **Phase 3 (known_hosts parsing & host enrichment):** initial implementation landed — `knownhosts` package parses plain/bracketed host entries, markers, and skips hashed hosts; provides file/path/default/reader indexing and merge helpers with tests.
 - **Phase 4-6+:** not started (static facts, option/Match metadata, extensions).
