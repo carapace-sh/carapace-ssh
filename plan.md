@@ -58,6 +58,9 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
   - Ran targeted 15s fuzz passes: `config` `FuzzIndexReader`/`FuzzParseDirectives`, `knownhosts` `FuzzIndexReader`, `destination` `Fuzz`, `authorizedkeys` `Fuzz` (all passed, no crashes/side effects observed).
   - Updated `AGENTS.md` to reflect refined Match/known_hosts/facts/include behavior and expanded test coverage/fixtures.
 
+- [x] Match alignment test expansion:
+  - Added tests for negated non-host Match criteria (`!user`, `!localnetwork`, `!tagged`, `!sessiontype`) preserving host extraction and for canonical/final/mixed `=`/spaced criteria alignment.
+
 ### Remaining focus
 - Full Match criteria audit/unknown-criterion fallback improvements and additional parsing alignment cases.
 - Broader ssh_config syntax tolerance follow-ups (additional continuation/comment/escape edge cases, explicit `%`/env handling decisions).
@@ -82,7 +85,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 - [x] Extend `option.MatchCriteria` (and lookup helpers/tests) for missing criteria relevant to safe skipping/alignment (at minimum evaluate/add `sessiontype`; include other known criteria as needed, with explicit kinds). *(sessiontype added; further audit pending)*
 - [x] Keep `exec`/`command` (and any command-like criteria) non-executable and conservatively consumed; prefer safety over speculative host extraction when alignment is ambiguous. *(`exec` remains rest-arg/non-executing; `command` treated as value arg for alignment, including empty quoted values)*
 - [ ] Improve unknown-criterion fallback only where it can be made safer/more accurate without guessing execution or dynamic semantics.
-- [x] Add/adjust tests for: `sessiontype`, `tagged`/`command` empty or quoted values, negated criteria, mixed criteria ordering, complex quoted `exec/command` text, `canonical`/`final` combinations, and malformed/unknown criteria not blocking later `host`/`originalhost` recovery where safe. *(sessiontype, empty `tagged`/`command`, and negated `host`/`originalhost` criteria including inline/mixed forms covered; more cases pending)*
+- [x] Add/adjust tests for: `sessiontype`, `tagged`/`command` empty or quoted values, negated criteria, mixed criteria ordering, complex quoted `exec/command` text, `canonical`/`final` combinations, and malformed/unknown criteria not blocking later `host`/`originalhost` recovery where safe. *(sessiontype, empty `tagged`/`command`, negated `host`/`originalhost` and negated non-host criteria, canonical/final/mixed alignment covered; more malformed/complex cases pending)*
 
 **Acceptance**
 - No side effects for configs containing `Match exec`/`Match command` in any tested form.
