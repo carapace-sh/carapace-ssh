@@ -806,3 +806,79 @@ Host declared-after-2
 		}
 	}
 }
+
+func TestEdgeCaseFixture(t *testing.T) {
+	marker := filepath.Join(t.TempDir(), "exec-marker")
+	content, err := os.ReadFile(filepath.Join("testdata", "edge-cases.conf"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	cfg := filepath.Join(t.TempDir(), "edge-cases.conf")
+	replaced := strings.ReplaceAll(string(content), "/tmp/should-not-exist-carapace-ssh", marker)
+	writeFile(t, cfg, replaced)
+
+	// Ensure fixture includes are resolved relative to the temp config location.
+	writeFile(t, filepath.Join(filepath.Dir(cfg), "includes", "extra.conf"), "Host gamma\nMatch host delta,!*.skip\n  User someone\n")
+	writeFile(t, filepath.Join(filepath.Dir(cfg), "edge-includes", "inc.conf"), "Host included-one\n  IdentityFile ~/.ssh/id_included\n")
+
+	idx := mustIndexFile(t, cfg)
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("exec marker must not exist, stat err=%v", err)
+	}
+
+	gotHosts := idx.HostCandidates()
+	wantHosts := []string{"alpha", "beta", "cmd-empty", "delta", "gamma", "gated-by-exec", "good.example", "included-one", "orig.example", "prod"}
+	if !reflect.DeepEqual(gotHosts, wantHosts) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", gotHosts, wantHosts)
+	}
+
+	declared := idx.DeclaredHosts()
+	for _, must := range []string{"alpha", "beta", "cmd-empty", "delta", "gamma", "gated-by-exec", "good.example", "included-one", "orig.example", "prod", "*.wild", "!negated", "*.skip", "!*.skip"} {
+		found := false
+		for _, h := range declared {
+			if h == must {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("DeclaredHosts() missing %q: %#v", must, declared)
+		}
+	}
+	for _, bad := range []string{"bad.example"} {
+		for _, h := range declared {
+			if h == bad {
+				t.Fatalf("DeclaredHosts() unexpectedly contains %q: %#v", bad, declared)
+			}
+		}
+	}
+
+	if f := idx.Facts("alpha"); f.HostName != "alpha.internal" || f.User != "alice" || f.Port != "2222" {
+		t.Fatalf("Facts(alpha) = %#v", f)
+	} else if !reflect.DeepEqual(f.UserKnownHostsFiles, []string{"none", "~/.ssh/kh_alpha"}) {
+		t.Fatalf("Facts(alpha).UserKnownHostsFiles = %#v", f.UserKnownHostsFiles)
+	}
+
+	if f := idx.Facts("prod"); f.ProxyJump != "bastion.example" || !reflect.DeepEqual(f.GlobalKnownHostsFiles, []string{"/etc/ssh/kh_prod"}) {
+		t.Fatalf("Facts(prod) = %#v", f)
+	}
+	if f := idx.Facts("good.example"); f.User != "gooduser" {
+		t.Fatalf("Facts(good.example).User = %#v", f.User)
+	}
+	if f := idx.Facts("gated-by-exec"); f.User != "gated" {
+		t.Fatalf("Facts(gated-by-exec).User = %#v", f.User)
+	}
+	if f := idx.Facts("cmd-empty"); f.HostName != "cmd.example" {
+		t.Fatalf("Facts(cmd-empty).HostName = %#v", f.HostName)
+	}
+	if f := idx.Facts("included-one"); !reflect.DeepEqual(f.IdentityFiles, []string{"~/.ssh/id_included"}) {
+		t.Fatalf("Facts(included-one).IdentityFiles = %#v", f.IdentityFiles)
+	}
+	if f := idx.Facts("delta"); f.User != "someone" {
+		t.Fatalf("Facts(delta).User = %#v", f.User)
+	}
+
+	if got, want := idx.KnownHostsFiles(), []string{"/etc/ssh/kh_prod", "~/.ssh/kh_alpha"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("KnownHostsFiles() = %#v, want %#v", got, want)
+	}
+}
