@@ -60,6 +60,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 
 - [x] Match alignment test expansion:
   - Added tests for negated non-host Match criteria (`!user`, `!localnetwork`, `!tagged`, `!sessiontype`) preserving host extraction and for canonical/final/mixed `=`/spaced criteria alignment.
+  - Added tests for negated `command`/`exec` safety and inline `exec=`/`command=` forms, canonical/final standalone forms, and unknown-criterion fallback preserving later host extraction.
 
 ### Remaining focus
 - Full Match criteria audit/unknown-criterion fallback improvements and additional parsing alignment cases.
@@ -81,7 +82,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 - Negated criteria tokens (`!user`, `!host`, `!exec`) and spaced/`=` forms (`criterion = value`, `criterion=` next token) must keep host extraction/alignment safe.
 
 **Plan**
-- [~] Audit `Match` criterion handling against current `ssh_config(5)`/OpenSSH behavior and classify each criterion as zero-arg, single-value, value-list, or rest-of-line/command-like for parsing purposes. *(core kinds refined: `exec` rest-arg, `command` value arg, `sessiontype` added, negated host-criteria extraction fixed; full audit pending)*
+- [~] Audit `Match` criterion handling against current `ssh_config(5)`/OpenSSH behavior and classify each criterion as zero-arg, single-value, value-list, or rest-of-line/command-like for parsing purposes. *(core kinds refined: `exec` rest-arg, `command` value arg, `sessiontype` added, negated host/non-host handling covered, inline/negated command-exec and unknown fallback tested; full audit pending)*
 - [x] Extend `option.MatchCriteria` (and lookup helpers/tests) for missing criteria relevant to safe skipping/alignment (at minimum evaluate/add `sessiontype`; include other known criteria as needed, with explicit kinds). *(sessiontype added; further audit pending)*
 - [x] Keep `exec`/`command` (and any command-like criteria) non-executable and conservatively consumed; prefer safety over speculative host extraction when alignment is ambiguous. *(`exec` remains rest-arg/non-executing; `command` treated as value arg for alignment, including empty quoted values)*
 - [ ] Improve unknown-criterion fallback only where it can be made safer/more accurate without guessing execution or dynamic semantics.
@@ -179,7 +180,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 ### 7. Fuzzing, regression matrix, and documentation
 
 **Plan**
-- [~] Extend fuzz seeds/corpora for high-value combinations: *(config/knownhosts seeds expanded; short and 15s targeted fuzz runs passed on core parsers; further cases pending)*
+- [~] Extend fuzz seeds/corpora for high-value combinations: *(config/knownhosts seeds expanded with negated/inline command-exec, empty/unknown/canonical-final forms; short and 15s targeted fuzz runs passed on core parsers; further cases pending)*
   - `Match` with `exec/command` (complex quoting), `all/canonical/final`, unknown/new criteria, `sessiontype`, negations, empty args, continuations, and `= / spaced =` forms.
   - `Include` graphs: nested, globbed, quoted, relative, `-F` isolation, reader contexts, symlink/cycle cases, missing/unreadable targets, and conditional placement in `Host`/`Match` blocks.
   - `known_hosts`: markers, hashed, mixed literal/wildcard/negated tokens, `[ipv4]:port`, `[ipv6]:port`, malformed fields/hashes/markers.
