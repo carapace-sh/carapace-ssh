@@ -29,6 +29,21 @@ Helpers may index standard entry points:
 
 Default discovery should provide sensible, well-defined behavior and can include drop-in defaults when rules are clearly specified and tested.
 
+### Programmatic sources (`IndexPaths`, `IndexReader`)
+
+- **`IndexPaths`** indexes provided `Source` values in order. Each source can set `Path`, `BaseDir`, and `System`; empty paths are skipped. Relative include resolution uses the source/base context (and follows configured include-graph rules).
+- **`IndexReader`** indexes content from a reader using the supplied `Source` context. When `Path` is set, it is used for cycle/identity handling and default base-dir derivation; when `BaseDir` is empty, user contexts fall back to `~/.ssh` (or configured home) and system contexts fall back to the system config directory as appropriate.
+- **`IndexConfig` / `HostCandidates`** use an explicit path in isolated `-F`-like mode, or default user+system discovery when the path is empty/whitespace.
+
+### Include/context parity matrix (current behavior)
+
+| Entry/context | Default sources merged | Base dir for relative includes (if not otherwise determined) | `~` in include args | Conditional `Include` in `Host`/`Match` | Notes |
+|---------------|------------------------|---------------------------------------------------------------|---------------------|------------------------------------------|------|
+| `IndexFile(path)` / `IndexConfig(explicit path)` | No (isolated, `-F`-like) | Including file directory (resolved path context) | Expanded | Followed conservatively for discovery | Follows include graph from entry file only. |
+| `IndexDefault()` / `IndexConfig("")` / `HostCandidates("")` | Yes (user + system, in order) | Per-source context (user `~/.ssh`, system `/etc/ssh` by default/options) | Expanded | Followed conservatively for discovery | Drop-in/system defaults depend on configured entry files and their includes. |
+| `IndexPaths(sources)` | No implicit merge beyond provided sources | `source.BaseDir` if set; else including file/source-derived context; user/system fallbacks may apply per source flags | Expanded | Followed conservatively for discovery | Empty source paths skipped; explicit `BaseDir`/`System` control resolution. |
+| `IndexReader(r, source)` | No | `source.BaseDir` if set; else `source.Path` dir if set; else user `~/.ssh` fallback, or system config dir when `source.System` | Expanded | Followed conservatively for discovery | `source.Path` (if set) participates in cycle/identity handling. |
+
 ## API shape (illustrative)
 
 Implementations commonly separate source/context description from indexing and querying, for example:

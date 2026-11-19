@@ -35,13 +35,13 @@ Tolerant handling commonly needs to account for criteria including:
 - `exec` (command argument; **never execute**, opaque; may prevent safe recovery of later criteria on the same line)
 - `command` (requested command/subsystem pattern argument; **never execute**; may be empty/quoted)
 - `host`, `originalhost` (**extract**, but not when the criterion itself is negated)
-- `user`, `localuser`
+- `user`, `group`, `localuser`
 - `localnetwork`
 - `tagged`
 - `sessiontype`
 - `version`
 - `all`, `canonical`, `final` (zero-arg / standalone forms)
-- connection/context criteria such as `address`, `ruser`, `rdomain`, `localport`, `remoteport` (consume arguments when known)
+- connection/context criteria such as `address`, `localaddress`, `ruser`, `rdomain`, `localport`, `remoteport` (consume arguments when known)
 
 This list is not exhaustive; unknown criteria must be handled without aborting.
 

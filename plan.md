@@ -67,12 +67,18 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
   - Added tolerance tests for unexpanded `%` token and `$ENV`-style forms in declared values/includes (non-fatal, preserved in static facts where applicable).
   - Added Match host-list test confirming negated/pattern values are not completable but remain declared with static fact association.
 
+- [x] Match criteria and contract/documentation refinements:
+  - Added `localaddress` and `group` to `option.MatchCriteria` (value args) with lookup/list tests and config host-extraction alignment/fuzz coverage.
+  - Clarified conditional `Include` handling (followed conservatively for discovery), programmatic source contexts (`IndexPaths`/`IndexReader`/`IndexConfig`), and static fact association semantics in docs and skill references; added include/context parity matrix to skill docs.
+  - Documented known_hosts marker/IPv6 extraction policy and explicit literal `@cert-authority` host handling in package docs, README, AGENTS, and skill references (revoked excluded, hashed skipped, bracketed hosts extracted to hostnames/raw IPv6).
+  - Kept in-flight known_hosts parser/test tolerance changes passing (host field requires key type/material; bracketed host-without-port and malformed cases covered). `go test ./...` and `go vet ./...` pass.
+
 ### Remaining focus
-- Full Match criteria audit/unknown-criterion fallback improvements and additional parsing alignment cases.
+- Full Match criteria audit/unknown-criterion fallback improvements and additional parsing alignment cases. *(`localaddress` and `group` added; further audit pending)*
 - Broader ssh_config syntax tolerance follow-ups (additional continuation/comment/escape edge cases, explicit `%`/env handling decisions). *(unexpanded `%`/`$ENV` forms now covered for tolerance/static preservation; expansion policy remains out of scope)*
-- Include base-dir/context parity matrix and documentation (`-F`, defaults, `IndexReader`/`IndexPaths`, user vs system, conditional include semantics).
-- Static facts contract/tests/docs (known_hosts path semantics, Match-gated association clarity).
-- known_hosts policy/normalization follow-ups (revisit `@cert-authority` literal-host contribution policy, IPv6 form consistency across packages, `none`/multi-path enrichment integration from config-declared paths).
+- Include base-dir/context parity matrix and documentation (`-F`, defaults, `IndexReader`/`IndexPaths`, user vs system, conditional include semantics). *(core behaviors, programmatic contexts, and parity matrix documented in skill refs; implementation/tests may need further parity cases)*
+- Static facts contract/tests/docs (known_hosts path semantics, Match-gated association clarity). *(association and `none`/aggregation semantics documented; further contract tests/docs may be useful)*
+- known_hosts policy/normalization follow-ups (IPv6/bracketed form consistency across packages, `none`/multi-path enrichment integration from config-declared paths; CA literal-host policy now explicit but may be revisited if needed).
 - Longer targeted fuzz runs, regression fixtures, and README/AGENTS/skill reference updates for finalized contracts.
 
 
@@ -87,8 +93,8 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 - Negated criteria tokens (`!user`, `!host`, `!exec`) and spaced/`=` forms (`criterion = value`, `criterion=` next token) must keep host extraction/alignment safe.
 
 **Plan**
-- [~] Audit `Match` criterion handling against current `ssh_config(5)`/OpenSSH behavior and classify each criterion as zero-arg, single-value, value-list, or rest-of-line/command-like for parsing purposes. *(core kinds refined: `exec` rest-arg, `command` value arg, `sessiontype` added, negated host/non-host handling covered, inline/negated command-exec and unknown fallback tested; full audit pending)*
-- [x] Extend `option.MatchCriteria` (and lookup helpers/tests) for missing criteria relevant to safe skipping/alignment (at minimum evaluate/add `sessiontype`; include other known criteria as needed, with explicit kinds). *(sessiontype added; further audit pending)*
+- [~] Audit `Match` criterion handling against current `ssh_config(5)`/OpenSSH behavior and classify each criterion as zero-arg, single-value, value-list, or rest-of-line/command-like for parsing purposes. *(core kinds refined: `exec` rest-arg, `command` value arg, `sessiontype`/`localaddress`/`group` added, negated host/non-host handling covered, inline/negated command-exec and unknown fallback tested; full audit pending)*
+- [x] Extend `option.MatchCriteria` (and lookup helpers/tests) for missing criteria relevant to safe skipping/alignment (at minimum evaluate/add `sessiontype`; include other known criteria as needed, with explicit kinds). *(sessiontype, `localaddress`, and `group` added; further audit pending)*
 - [x] Keep `exec`/`command` (and any command-like criteria) non-executable and conservatively consumed; prefer safety over speculative host extraction when alignment is ambiguous. *(`exec` remains rest-arg/non-executing; `command` treated as value arg for alignment, including empty quoted values)*
 - [ ] Improve unknown-criterion fallback only where it can be made safer/more accurate without guessing execution or dynamic semantics.
 - [x] Add/adjust tests for: `sessiontype`, `tagged`/`command` empty or quoted values, negated criteria, mixed criteria ordering, complex quoted `exec/command` text, `canonical`/`final` combinations, and malformed/unknown criteria not blocking later `host`/`originalhost` recovery where safe. *(sessiontype, empty `tagged`/`command`, negated `host`/`originalhost` and negated non-host criteria, canonical/final/mixed alignment covered; more malformed/complex cases pending)*
@@ -124,7 +130,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 **Plan**
 - [ ] Define/document include path-resolution rules per context (default user, default system, explicit `-F`, `IndexPaths` source, `IndexReader`) including precedence/fallback behavior for relative paths.
 - [~] Add tests for: system config including `ssh_config.d/*` and nested relative includes, `-F` file with relative/glob/quoted includes, `IndexReader` with/without `Path`/`BaseDir`/`System`, and user/system base-dir expectations. *(substantial coverage exists, including reader explicit/default base-dir contexts; parity matrix/documentation pending)* *(substantial coverage exists; parity matrix/documentation pending)*
-- [x] Decide and codify behavior for `Include` inside `Host`/`Match` blocks (recommended: keep conservative follow for completion discovery unless it causes material correctness issues, but make it explicit and regression-tested). *(currently followed for discovery; covered by tests)*
+- [x] Decide and codify behavior for `Include` inside `Host`/`Match` blocks (recommended: keep conservative follow for completion discovery unless it causes material correctness issues, but make it explicit and regression-tested). *(currently followed for discovery; covered by tests and documented)*
 - [ ] Preserve non-fatal handling for missing/unreadable/no-match includes and deterministic processing of glob results.
 - [ ] Review `~`/path handling in include args (and interactions with quoted/`=` forms); avoid expanding tokens/env in unsafe or surprising ways.
 
@@ -159,7 +165,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 - Duplicates/conflicts and distinct port-qualified entries may appear; merge should remain deduped/sorted.
 
 **Plan**
-- [x] Document/decide policy for `@revoked` and `@cert-authority` host tokens (recommended: exclude revoked hosts from completion candidates; treat CA-scope patterns conservatively and do not invent literals) and implement/tests accordingly. *(`@revoked` excluded; CA literal tokens may still be suggested when explicitly present - review pending)*
+- [x] Document/decide policy for `@revoked` and `@cert-authority` host tokens (recommended: exclude revoked hosts from completion candidates; treat CA-scope patterns conservatively and do not invent literals) and implement/tests accordingly. *(`@revoked` excluded; explicit literal `@cert-authority` host tokens may be suggested when otherwise completable; policy now documented in code/docs/tests - may revisit if stricter behavior desired)*
 - [x] Add tests for: mixed comma lists with positive + wildcard + negated tokens, `@cert-authority`/`@revoked` edge cases, bracketed IPv6 with port (`[2001:db8::1]:2222`), malformed marker/hash/field lines, and unreadable/missing files. *(key cases added; more combinations pending)*
 - [ ] Reconcile host candidate normalization for IPv6/bracketed forms across `knownhosts`, `config`, and `destination` helpers (define canonical completable form or clearly document raw-form behavior).
 - [ ] Ensure `IndexPaths`/`IndexDefault`/reader behavior remains deterministic and non-fatal; support enrichment from config-declared `UserKnownHostsFile`/`GlobalKnownHostsFile` paths at API/integration level (including handling of `none` and multi-path values by callers).
@@ -175,7 +181,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 - Identity and authorized_keys helpers must remain completion-safe (filesystem/env inspection only; no probing/execution), tolerant of common forms, and consistent with config/known_hosts host representations.
 
 **Plan**
-- [ ] Expand `option` keyword/criterion coverage and tests as needed for parsing-critical cases (prioritize Match criteria first); keep lists sorted and normalization behavior explicit.
+- [~] Expand `option` keyword/criterion coverage and tests as needed for parsing-critical cases (prioritize Match criteria first); keep lists sorted and normalization behavior explicit. *(`sessiontype`, `localaddress`, `group` covered; further audit pending)*
 - [ ] Add targeted tests for destination/URI/ProxyJump/IPv6 forms that intersect host completion and for helper tolerance on malformed inputs.
 - [ ] Preserve non-fatal behavior for missing/unreadable discovery paths and avoid adding strict validation that rejects recoverable user data.
 

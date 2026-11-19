@@ -38,7 +38,8 @@ func parseLine(line string, add func(string)) {
 	}
 
 	hostField := fields[0]
-	if hostField == "" {
+	// known_hosts lines require host field plus key type and key material.
+	if hostField == "" || len(fields) < 3 {
 		return
 	}
 

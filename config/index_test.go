@@ -1103,3 +1103,58 @@ Host after-2
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }
+
+func TestIncludeMultipleArgs(t *testing.T) {
+	dir := t.TempDir()
+	base := filepath.Join(dir, "cfg")
+	writeFile(t, filepath.Join(base, "a.conf"), "Host inc-a\n")
+	writeFile(t, filepath.Join(base, "b.conf"), "Host inc-b\n")
+	writeFile(t, filepath.Join(base, "main.conf"), "Host main\nInclude a.conf b.conf\n")
+	idx := mustIndexFile(t, filepath.Join(base, "main.conf"))
+	if got, want := idx.HostCandidates(), []string{"inc-a", "inc-b", "main"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
+func TestIndexPathsWithCustomBaseDir(t *testing.T) {
+	dir := t.TempDir()
+	base := filepath.Join(dir, "base")
+	writeFile(t, filepath.Join(base, "main.conf"), "Host main\nInclude inc.conf\n")
+	writeFile(t, filepath.Join(base, "inc.conf"), "Host included\n")
+	// Explicit BaseDir controls relative include resolution for the source.
+	idx, err := IndexPaths([]Source{{Path: filepath.Join(base, "main.conf"), BaseDir: base}})
+	if err != nil {
+		t.Fatalf("IndexPaths(): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"included", "main"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
+func TestMatchAddressAndPortCriteriaAlignment(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Match address 192.0.2.0/24 host addr-host
+Host h1
+
+Match rdomain 0 originalhost rdomain-host
+Host h2
+
+Match localport 2222 host lport-host
+Host h3
+
+Match remoteport 22 host rport-host
+Host h4
+
+Match localaddress 192.0.2.10 host laddr-host
+Host h5
+
+Match group staff host group-host
+Host h6
+`)
+	idx := mustIndexFile(t, cfg)
+	if got, want := idx.HostCandidates(), []string{"addr-host", "group-host", "h1", "h2", "h3", "h4", "h5", "h6", "laddr-host", "lport-host", "rdomain-host", "rport-host"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}

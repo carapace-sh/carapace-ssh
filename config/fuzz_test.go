@@ -20,6 +20,8 @@ func FuzzIndexReader(f *testing.F) {
 		"Match !command sftp host after-neg-command\nHost neg-cmd-target\n",
 		"Match !exec=\"echo hi\"\nHost after-neg-inline-exec\n",
 		"Match unknowncriterion host recovered\nHost recovered-target\n",
+		"Match localaddress 192.0.2.10 host laddr-host\nHost laddr-target\n",
+		"Match group staff host group-host\nHost group-target\n",
 		"Include /nonexistent/*.conf\nInclude ~/missing\nHost included\n",
 		"Match=host = alpha originalhost= beta\nHost gamma\n",
 		"Host a \\\n  b\n",

@@ -24,11 +24,17 @@ Relative path resolution must be **explicitly defined and tested** because OpenS
 Common contexts (configurable; define and test explicitly):
 - **User config context**: relative to `~/.ssh` for certain cases (commonly relevant to default user config resolution).
 - **System config context**: relative to `/etc/ssh`.
-- **Including-file directory**: relative includes may be resolved relative to the file containing the directive depending on context/rules chosen.
+- **Including-file directory**: relative includes are commonly resolved relative to the file containing the directive when a file context exists.
 
 Implementation should model context via an explicit source/options type (e.g. `Source { Path, BaseDir, System }` or equivalent options) rather than hidden globals. Callers/tests must be able to control base dirs and roots.
 
-Token expansion (e.g. `%h`, `%u`) is generally not statically available for completion-safe indexing; avoid runtime expansion. Document and test chosen static resolution rules for compatibility with common OpenSSH setups.
+Current behavior highlights:
+- `IndexFile`/explicit paths and file-backed includes use the including file's directory as base context for traversal.
+- `IndexPaths` respects `Source.BaseDir`/`Source.System` when provided.
+- `IndexReader` uses `Source.BaseDir` or `Source.Path`'s directory when available; with no path/base dir it falls back to `~/.ssh` for user context or the configured system config directory for system context.
+- `~` is expanded in include patterns/paths using configured home dir; OpenSSH token expansion (`%h`, `%u`, etc.) and environment-variable expansion are not performed.
+
+Token expansion (e.g. `%h`, `%u`) is generally not statically available for completion-safe indexing; avoid runtime expansion. Unexpanded `%`/`$ENV`-like forms are treated tolerantly (no execution/dynamic expansion). See [defaults.md](defaults.md) for the context parity matrix.
 
 ## Globbing
 
@@ -62,7 +68,7 @@ Token expansion (e.g. `%h`, `%u`) is generally not statically available for comp
 
 - **Explicit config path (`-F`)**: read only that file as the entry (no implicit merge of system/user defaults) but follow its `Include`s.
 - **Default discovery**: index user/system entry points and their includes under appropriate base dirs. Drop-in defaults (e.g. `/etc/ssh/ssh_config.d/*.conf`) should be added only with clearly defined, tested rules.
-- **Conditional placement**: OpenSSH applies `Include` conditionally inside `Host`/`Match` blocks. A completion-safe static indexer may follow such includes conservatively for host discovery (preferring over-inclusion to missed candidates), but this tradeoff must be explicit and tested.
+- **Conditional placement**: OpenSSH applies `Include` conditionally inside `Host`/`Match` blocks. The current completion-safe static indexer follows such includes conservatively for host discovery (preferring over-inclusion to missed candidates); this tradeoff is explicit and regression-tested.
 
 See [defaults.md](defaults.md).
 

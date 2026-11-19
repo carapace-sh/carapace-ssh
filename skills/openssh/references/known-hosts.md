@@ -44,7 +44,8 @@ Consider:
 - deduplication across sources
 - deterministic ordering
 - optional source metadata (e.g. where a host came from) if useful to consumers, without complicating the simple API
-- port handling: whether to emit `host`, `[host]:port`, or both forms depends on consumer needs (document). When extracting from bracketed IPv6 forms, be explicit about raw vs bracketed hostname representation.
+- port handling: whether to emit `host`, `[host]:port`, or both forms depends on consumer needs (document). Current completable host extraction emits the host portion only (stripping brackets/ports); bracketed IPv6 hosts are returned as raw IPv6 literals. Consumers can apply destination-specific formatting when needed.
+- config-declared `UserKnownHostsFile`/`GlobalKnownHostsFile` paths (aggregated via config index helpers, excluding empty/`none`) can be indexed by callers for enrichment; path token expansion is not performed.
 
 ## Safety and tolerance
 

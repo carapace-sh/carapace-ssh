@@ -188,3 +188,23 @@ func TestKnownHostsFixture(t *testing.T) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }
+
+func TestKnownHostsBracketedHostWithoutPortAndMalformed(t *testing.T) {
+	idx, err := IndexReader(strings.NewReader(`
+[example.com] ssh-ed25519 AAAA
+[2001:db8::5] ssh-ed25519 AAAA
+[broken ssh-ed25519 AAAA
+[]:22 ssh-ed25519 AAAA
+just-a-host
+`))
+	if err != nil {
+		t.Fatalf("IndexReader(): %v", err)
+	}
+	// Bracketed hosts without :port are accepted as host tokens; malformed
+	// bracket forms and bare key-only lines should not produce candidates.
+	got := idx.HostCandidates()
+	want := []string{"2001:db8::5", "example.com"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
