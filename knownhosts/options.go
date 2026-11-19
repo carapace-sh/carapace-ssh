@@ -10,6 +10,7 @@ type Option func(*indexOptions)
 
 type indexOptions struct {
 	userKnownHostsPath   string
+	userKnownHostsSet    bool
 	systemKnownHostsPath string
 	homeDir              string
 	readFile             func(string) ([]byte, error)
@@ -17,7 +18,10 @@ type indexOptions struct {
 
 // WithUserKnownHostsPath overrides the default user known_hosts path (~/.ssh/known_hosts).
 func WithUserKnownHostsPath(path string) Option {
-	return func(o *indexOptions) { o.userKnownHostsPath = path }
+	return func(o *indexOptions) {
+		o.userKnownHostsPath = path
+		o.userKnownHostsSet = true
+	}
 }
 
 // WithSystemKnownHostsPath overrides the default system known_hosts path (/etc/ssh/ssh_known_hosts).
@@ -38,9 +42,19 @@ func WithReadFile(fn func(string) ([]byte, error)) Option {
 func defaultOptions() indexOptions {
 	home, _ := os.UserHomeDir()
 	return indexOptions{
-		userKnownHostsPath:   filepath.Join(home, ".ssh", "known_hosts"),
 		systemKnownHostsPath: filepath.Join(string(filepath.Separator), "etc", "ssh", "ssh_known_hosts"),
 		homeDir:              home,
 		readFile:             os.ReadFile,
 	}
+}
+
+func (o indexOptions) defaultUserKnownHostsPath() string {
+	if o.userKnownHostsSet {
+		return o.userKnownHostsPath
+	}
+	base := o.homeDir
+	if base == "" {
+		return ""
+	}
+	return filepath.Join(base, ".ssh", "known_hosts")
 }

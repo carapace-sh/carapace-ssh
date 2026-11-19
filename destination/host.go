@@ -21,8 +21,8 @@ func ParseHostPort(s string) HostPort {
 		if end > 0 {
 			hp := HostPort{Host: s[1:end]}
 			rest := s[end+1:]
-			if strings.HasPrefix(rest, ":") {
-				hp.Port = strings.TrimPrefix(rest, ":")
+			if port, ok := strings.CutPrefix(rest, ":"); ok {
+				hp.Port = port
 			}
 			return hp
 		}

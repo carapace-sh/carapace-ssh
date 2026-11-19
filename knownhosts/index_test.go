@@ -91,3 +91,42 @@ func TestMissingKnownHostsIsNonFatal(t *testing.T) {
 		t.Fatalf("HostCandidates() = %#v, want empty", got)
 	}
 }
+
+func TestIndexDefaultUsesHomeDir(t *testing.T) {
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	user := filepath.Join(home, ".ssh", "known_hosts")
+	sys := filepath.Join(dir, "etc", "ssh", "ssh_known_hosts")
+	writeFile(t, user, "home-user.example ssh-ed25519 AAAA\n")
+	writeFile(t, sys, "home-system.example ssh-ed25519 AAAA\n")
+
+	idx, err := IndexDefault(WithHomeDir(home), WithSystemKnownHostsPath(sys))
+	if err != nil {
+		t.Fatalf("IndexDefault(): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"home-system.example", "home-user.example"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
+func TestUnreadableKnownHostsIsNonFatal(t *testing.T) {
+	idx, err := IndexFile("/unreadable/known_hosts", WithReadFile(func(string) ([]byte, error) {
+		return nil, os.ErrPermission
+	}))
+	if err != nil {
+		t.Fatalf("IndexFile(unreadable): %v", err)
+	}
+	if got := idx.HostCandidates(); len(got) != 0 {
+		t.Fatalf("HostCandidates() = %#v, want empty", got)
+	}
+
+	idx, err = IndexPaths([]string{"/unreadable/known_hosts"}, WithReadFile(func(string) ([]byte, error) {
+		return nil, os.ErrPermission
+	}))
+	if err != nil {
+		t.Fatalf("IndexPaths(unreadable): %v", err)
+	}
+	if got := idx.HostCandidates(); len(got) != 0 {
+		t.Fatalf("HostCandidates() = %#v, want empty", got)
+	}
+}

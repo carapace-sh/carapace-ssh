@@ -24,7 +24,8 @@ func (i *Index) HostCandidates() []string {
 	return sortedUnique(i.hosts)
 }
 
-// IndexFile indexes a known_hosts file. Missing files are treated as non-fatal.
+// IndexFile indexes a known_hosts file. Missing or unreadable files are treated
+// as non-fatal.
 func IndexFile(path string, opts ...Option) (*Index, error) {
 	o := defaultOptions()
 	for _, opt := range opts {
@@ -36,7 +37,7 @@ func IndexFile(path string, opts ...Option) (*Index, error) {
 	}
 	content, err := o.readFile(path)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
+		if isNonFatalReadError(err) {
 			return idx, nil
 		}
 		return idx, err
@@ -47,8 +48,8 @@ func IndexFile(path string, opts ...Option) (*Index, error) {
 	return idx, nil
 }
 
-// IndexPaths indexes multiple known_hosts files in order. Missing files are
-// treated as non-fatal.
+// IndexPaths indexes multiple known_hosts files in order. Missing or unreadable
+// files are treated as non-fatal.
 func IndexPaths(paths []string, opts ...Option) (*Index, error) {
 	o := defaultOptions()
 	for _, opt := range opts {
@@ -62,7 +63,7 @@ func IndexPaths(paths []string, opts ...Option) (*Index, error) {
 		}
 		content, err := o.readFile(path)
 		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
+			if isNonFatalReadError(err) {
 				continue
 			}
 			errs = append(errs, err)
@@ -78,16 +79,27 @@ func IndexPaths(paths []string, opts ...Option) (*Index, error) {
 	return idx, nil
 }
 
+func isNonFatalReadError(err error) bool {
+	return errors.Is(err, os.ErrNotExist) || errors.Is(err, os.ErrPermission)
+}
+
 // IndexDefault indexes default user and system known_hosts files.
 func IndexDefault(opts ...Option) (*Index, error) {
 	o := defaultOptions()
 	for _, opt := range opts {
 		opt(&o)
 	}
-	return IndexPaths([]string{o.userKnownHostsPath, o.systemKnownHostsPath},
+	paths := []string{}
+	if p := o.defaultUserKnownHostsPath(); p != "" {
+		paths = append(paths, p)
+	}
+	if o.systemKnownHostsPath != "" {
+		paths = append(paths, o.systemKnownHostsPath)
+	}
+	return IndexPaths(paths,
 		WithHomeDir(o.homeDir),
 		WithReadFile(o.readFile),
-		WithUserKnownHostsPath(o.userKnownHostsPath),
+		WithUserKnownHostsPath(o.defaultUserKnownHostsPath()),
 		WithSystemKnownHostsPath(o.systemKnownHostsPath),
 	)
 }
