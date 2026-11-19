@@ -1,12 +1,10 @@
 package config
 
-import "strings"
+import (
+	"strings"
 
-var zeroArgMatchCriteria = map[string]struct{}{
-	"all":       {},
-	"canonical": {},
-	"final":     {},
-}
+	"github.com/carapace-sh/carapace-ssh/option"
+)
 
 // extractMatchHosts returns host candidates declared via Match host/originalhost.
 // It is tolerant: unknown criteria do not abort extraction, and exec/command are
@@ -28,60 +26,59 @@ func extractMatchHosts(args []string) []string {
 			hasInline = true
 		}
 
-		crit := strings.ToLower(strings.TrimSpace(critToken))
-		crit = strings.TrimPrefix(crit, "!")
-
-		switch crit {
-		case "host", "originalhost":
-			value := inlineValue
-			if !hasInline {
-				if i+1 >= len(args) {
-					continue
-				}
-				value = args[i+1]
-				i++
-			}
-			for _, v := range splitCommaList(value) {
-				candidates = append(candidates, v)
-			}
-		case "exec", "command":
-			// Command text is typically rest-of-line; never execute. Stop to avoid
-			// misinterpreting command text as further criteria.
-			return candidates
-		case "all", "canonical", "final":
-			// zero-arg criteria
-		case "user", "localuser", "localnetwork", "tagged", "address", "ruser", "rdomain", "localport", "remoteport":
-			if !hasInline && i+1 < len(args) {
-				i++
-			}
-		default:
-			// Unknown criterion: conservatively consume one argument if present to
-			// preserve alignment for later host/originalhost where possible, unless it
-			// looks like another criterion keyword token. This is best-effort.
-			if hasInline {
-				continue
-			}
-			if i+1 < len(args) {
-				next := strings.ToLower(strings.TrimSpace(args[i+1]))
-				nextBase := strings.TrimPrefix(next, "!")
-				if eq := strings.Index(nextBase, "="); eq >= 0 {
-					nextBase = nextBase[:eq]
-				}
-				if _, isZero := zeroArgMatchCriteria[nextBase]; !isZero && !looksLikeMatchCriterion(nextBase) {
+		crit, known := option.LookupMatchCriterion(critToken)
+		if known {
+			switch {
+			case crit.ExtractsHosts:
+				value := inlineValue
+				if !hasInline {
+					if i+1 >= len(args) {
+						continue
+					}
+					value = args[i+1]
 					i++
 				}
+				for _, v := range splitCommaList(value) {
+					candidates = append(candidates, v)
+				}
+			case crit.Kind == option.MatchArgRest:
+				// Command text is typically rest-of-line; never execute. Stop to avoid
+				// misinterpreting command text as further criteria.
+				return candidates
+			case crit.Kind == option.MatchArgNone:
+				// zero-arg criterion
+			case crit.Kind == option.MatchArgValue:
+				if !hasInline && i+1 < len(args) {
+					i++
+				}
+			}
+			continue
+		}
+
+		// Unknown criterion: conservatively consume one argument if present to
+		// preserve alignment for later host/originalhost where possible, unless it
+		// looks like another criterion token. This is best-effort.
+		if hasInline {
+			continue
+		}
+		if i+1 < len(args) {
+			next := strings.ToLower(strings.TrimSpace(args[i+1]))
+			nextBase := strings.TrimPrefix(next, "!")
+			if eq := strings.Index(nextBase, "="); eq >= 0 {
+				nextBase = nextBase[:eq]
+			}
+			if !isKnownCriterionToken(nextBase) {
+				i++
 			}
 		}
 	}
 	return candidates
 }
 
-func looksLikeMatchCriterion(s string) bool {
-	switch s {
-	case "host", "originalhost", "exec", "command", "all", "canonical", "final",
-		"user", "localuser", "localnetwork", "tagged", "address", "ruser", "rdomain", "localport", "remoteport":
+func isKnownCriterionToken(s string) bool {
+	if option.IsKnownMatchCriterion(s) {
 		return true
-	default:
-		return false
 	}
+	_, ok := option.LookupMatchCriterion(s)
+	return ok
 }
