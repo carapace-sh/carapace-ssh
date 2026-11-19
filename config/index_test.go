@@ -758,3 +758,27 @@ func TestMalformedAndBinaryInputIsTolerated(t *testing.T) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }
+
+func TestMatchNegatedHostCriteriaDoNotExtractHosts(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Match !host bad.example host good.example
+Host declared-after
+
+Match !originalhost nope.example originalhost keep.example
+Host declared-after-2
+`)
+	idx := mustIndexFile(t, cfg)
+	if got, want := idx.HostCandidates(), []string{"declared-after", "declared-after-2", "good.example", "keep.example"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+	declared := idx.DeclaredHosts()
+	for _, bad := range []string{"bad.example", "nope.example"} {
+		for _, h := range declared {
+			if h == bad {
+				t.Fatalf("DeclaredHosts() unexpectedly contains %q: %#v", bad, declared)
+			}
+		}
+	}
+}

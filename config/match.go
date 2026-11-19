@@ -26,13 +26,14 @@ func extractMatchHosts(args []string) []string {
 			hasInline = true
 		}
 
+		negated := strings.HasPrefix(critToken, "!")
 		crit, known := option.LookupMatchCriterion(critToken)
 		if known {
 			switch {
 			case crit.ExtractsHosts:
 				value, next := matchCriterionValue(args, i, inlineValue, hasInline)
 				i = next
-				if value == "" {
+				if negated || value == "" {
 					continue
 				}
 				for _, v := range splitCommaList(value) {
