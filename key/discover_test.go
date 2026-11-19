@@ -151,6 +151,26 @@ func TestPairIdentityFilesDifferentDirectories(t *testing.T) {
 	}
 }
 
+func TestAgentSocketPaths(t *testing.T) {
+	env := map[string]string{
+		"SSH_AUTH_SOCK": " /tmp/ssh-agent.sock ",
+	}
+	lookup := func(key string) string { return env[key] }
+	got := AgentSocketPaths(lookup)
+	want := []string{"/tmp/ssh-agent.sock"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("AgentSocketPaths() = %#v, want %#v", got, want)
+	}
+
+	got = AgentSocketPaths(func(string) string { return "" })
+	if len(got) != 0 {
+		t.Fatalf("AgentSocketPaths(empty) = %#v, want empty", got)
+	}
+
+	got = AgentSocketPaths(nil)
+	_ = got
+}
+
 func TestDiscoverKeyPairs(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "id_ed25519"))
