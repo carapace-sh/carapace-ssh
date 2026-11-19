@@ -42,14 +42,19 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
   - Excluded `"none"` (case-insensitive) from aggregated `Index.KnownHostsFiles()` paths.
   - Added tests for empty Match criteria args and `Include` inside `Host`/`Match` blocks (followed for conservative completion discovery).
 - [x] Verification: `go test ./...` and `go vet ./...` pass after each change set.
+- [x] Additional edge-case coverage and smoke fuzzing:
+  - Added tests for `Index.KnownHostsFiles()` excluding `"none"` (declared facts preserved) and for Match `exec="..."` inline/quoted safety with continued indexing.
+  - Added known_hosts marker/mixed-token policy tests (revoked excluded; CA/wildcard/negated/hashed filtered to literal hosts; IPv6 extracted raw).
+  - Ran short fuzz smoke runs: `config` `FuzzIndexReader`, `config` `FuzzParseDirectives`, `knownhosts` `FuzzIndexReader`, `destination` `Fuzz`, `authorizedkeys` `Fuzz` (all passed).
+  - Updated `README.md` to note revoked known_hosts exclusion from completable enrichment.
 
 ### Remaining focus
 - Full Match criteria audit/unknown-criterion fallback improvements and additional parsing alignment cases.
 - Broader ssh_config syntax tolerance tests (continuations/comments/CRLF/malformed bytes, explicit `%`/env handling decisions).
 - Include base-dir/context parity matrix and documentation (`-F`, defaults, `IndexReader`/`IndexPaths`, user vs system, conditional include semantics).
 - Static facts contract/tests/docs (known_hosts path semantics, Match-gated association clarity).
-- known_hosts policy/normalization follow-ups (`@cert-authority` literal-host handling review, IPv6 form consistency across packages, `none`/multi-path enrichment integration).
-- Targeted fuzz runs, regression fixtures, and README/AGENTS/skill reference updates for finalized contracts.
+- known_hosts policy/normalization follow-ups (revisit `@cert-authority` literal-host contribution policy, IPv6 form consistency across packages, `none`/multi-path enrichment integration from config-declared paths).
+- Longer targeted fuzz runs, regression fixtures, and README/AGENTS/skill reference updates for finalized contracts.
 
 
 ## Work items
