@@ -211,11 +211,13 @@ func JoinProxyJump(hops []Target) string {
 
 // URI represents a remote destination URI (e.g. sftp://user@host:port/path).
 type URI struct {
-	Scheme string
-	User   string
-	Host   string
-	Port   string
-	Path   string
+	Scheme   string
+	User     string
+	Host     string
+	Port     string
+	Path     string
+	RawQuery string
+	Fragment string
 }
 
 // ParseURI parses an scp/sftp-style destination URI. It returns ok=false for
@@ -235,10 +237,15 @@ func ParseURI(s string) (URI, bool) {
 		return URI{}, false
 	}
 	parsed := URI{
-		Scheme: scheme,
-		Host:   u.Hostname(),
-		Port:   u.Port(),
-		Path:   u.Path,
+		Scheme:   scheme,
+		Host:     u.Hostname(),
+		Port:     u.Port(),
+		Path:     u.EscapedPath(),
+		RawQuery: u.RawQuery,
+		Fragment: u.Fragment,
+	}
+	if parsed.Path == "" {
+		parsed.Path = u.Path
 	}
 	if u.User != nil {
 		parsed.User = u.User.Username()
@@ -264,15 +271,23 @@ func FormatURI(u URI) string {
 		path = "/" + path
 	}
 	out += path
+	if q := strings.TrimPrefix(u.RawQuery, "?"); q != "" {
+		out += "?" + q
+	}
+	if f := strings.TrimPrefix(u.Fragment, "#"); f != "" {
+		out += "#" + f
+	}
 	return out
 }
 
 // Remote represents a parsed remote destination in URI or scp-style form.
 type Remote struct {
-	Scheme string
-	Target Target
-	Path   string
-	URI    bool
+	Scheme   string
+	Target   Target
+	Path     string
+	RawQuery string
+	Fragment string
+	URI      bool
 }
 
 // ParseRemote parses a remote destination from either URI or scp-style syntax.
@@ -280,10 +295,12 @@ type Remote struct {
 func ParseRemote(s string) (Remote, bool) {
 	if uri, ok := ParseURI(s); ok {
 		return Remote{
-			Scheme: uri.Scheme,
-			Target: Target{User: uri.User, Host: uri.Host, Port: uri.Port},
-			Path:   uri.Path,
-			URI:    true,
+			Scheme:   uri.Scheme,
+			Target:   Target{User: uri.User, Host: uri.Host, Port: uri.Port},
+			Path:     uri.Path,
+			RawQuery: uri.RawQuery,
+			Fragment: uri.Fragment,
+			URI:      true,
 		}, true
 	}
 
@@ -301,7 +318,15 @@ func ParseRemote(s string) (Remote, bool) {
 // scp-style remotes are formatted as target:path.
 func FormatRemote(r Remote) string {
 	if r.URI {
-		return FormatURI(URI{Scheme: r.Scheme, User: r.Target.User, Host: r.Target.Host, Port: r.Target.Port, Path: r.Path})
+		return FormatURI(URI{
+			Scheme:   r.Scheme,
+			User:     r.Target.User,
+			Host:     r.Target.Host,
+			Port:     r.Target.Port,
+			Path:     r.Path,
+			RawQuery: r.RawQuery,
+			Fragment: r.Fragment,
+		})
 	}
 	return FormatTarget(r.Target) + ":" + r.Path
 }

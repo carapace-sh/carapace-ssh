@@ -84,8 +84,14 @@ func TestDiscoverDefaultIdentityFiles(t *testing.T) {
 	if got, want := Paths(files), []string{filepath.Join(sshDir, "id_test")}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("Paths() = %#v, want %#v", got, want)
 	}
+	if got, want := BaseNames(files), []string{"id_test"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("BaseNames() = %#v, want %#v", got, want)
+	}
 	if got := Paths(nil); len(got) != 0 {
 		t.Fatalf("Paths(nil) = %#v, want empty", got)
+	}
+	if got := BaseNames(nil); len(got) != 0 {
+		t.Fatalf("BaseNames(nil) = %#v, want empty", got)
 	}
 }
 
@@ -119,6 +125,12 @@ func TestPairIdentityFiles(t *testing.T) {
 	}
 	if !reflect.DeepEqual(pairs, want) {
 		t.Fatalf("PairIdentityFiles() = %#v, want %#v", pairs, want)
+	}
+	if got, wantBase := pairs[0].BaseName(), "id_ed25519"; got != wantBase {
+		t.Fatalf("pairs[0].BaseName() = %q, want %q", got, wantBase)
+	}
+	if got, wantBase := pairs[2].BaseName(), "other"; got != wantBase {
+		t.Fatalf("pairs[2].BaseName() = %q, want %q", got, wantBase)
 	}
 }
 

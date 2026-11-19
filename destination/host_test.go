@@ -175,6 +175,7 @@ func TestParseAndFormatURI(t *testing.T) {
 		{"sftp://example.com/path/to/file", URI{Scheme: "sftp", Host: "example.com", Path: "/path/to/file"}, true, "sftp://example.com/path/to/file"},
 		{"sftp://alice@example.com:2222/dir", URI{Scheme: "sftp", User: "alice", Host: "example.com", Port: "2222", Path: "/dir"}, true, "sftp://alice@example.com:2222/dir"},
 		{"scp://bob@[2001:db8::1]/x", URI{Scheme: "scp", User: "bob", Host: "2001:db8::1", Path: "/x"}, true, "scp://bob@[2001:db8::1]/x"},
+		{"sftp://host/path%20with%20space?download=1#frag", URI{Scheme: "sftp", Host: "host", Path: "/path%20with%20space", RawQuery: "download=1", Fragment: "frag"}, true, "sftp://host/path%20with%20space?download=1#frag"},
 		{"SFTP://host", URI{Scheme: "sftp", Host: "host", Path: ""}, true, "sftp://host"},
 		{"host:/path", URI{}, false, ""},
 		{"not-a-uri", URI{}, false, ""},

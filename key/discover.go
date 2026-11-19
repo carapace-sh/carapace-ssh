@@ -20,6 +20,21 @@ type KeyPair struct {
 	Certificate string
 }
 
+// BaseName returns the key base name for the pair (private key name, or
+// derived from public/certificate names when the private key is absent).
+func (p KeyPair) BaseName() string {
+	switch {
+	case p.Private != "":
+		return filepath.Base(p.Private)
+	case p.Public != "":
+		return strings.TrimSuffix(filepath.Base(p.Public), ".pub")
+	case p.Certificate != "":
+		return strings.TrimSuffix(filepath.Base(p.Certificate), "-cert.pub")
+	default:
+		return ""
+	}
+}
+
 // DefaultDir returns the default SSH directory for the given home directory.
 func DefaultDir(home string) string {
 	if strings.TrimSpace(home) == "" {
@@ -80,6 +95,27 @@ func Paths(files []IdentityFile) []string {
 			out = append(out, f.Path)
 		}
 	}
+	return out
+}
+
+// BaseNames returns deduplicated, sorted base names for discovered identity
+// files (e.g. id_ed25519).
+func BaseNames(files []IdentityFile) []string {
+	if len(files) == 0 {
+		return []string{}
+	}
+	seen := map[string]struct{}{}
+	for _, f := range files {
+		if f.Name == "" {
+			continue
+		}
+		seen[f.Name] = struct{}{}
+	}
+	out := make([]string, 0, len(seen))
+	for name := range seen {
+		out = append(out, name)
+	}
+	sort.Strings(out)
 	return out
 }
 
