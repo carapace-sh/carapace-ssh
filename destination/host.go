@@ -74,6 +74,11 @@ type Target struct {
 	Port string
 }
 
+// IsZero reports whether the target has no user, host, or port.
+func (t Target) IsZero() bool {
+	return t.User == "" && t.Host == "" && t.Port == ""
+}
+
 // ParseTarget parses [user@]host, [user@]host:port, and [user@][host]:port
 // forms. It does not parse scp path separators.
 func ParseTarget(s string) Target {

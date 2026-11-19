@@ -49,22 +49,28 @@ func TestFormatHostPort(t *testing.T) {
 
 func TestParseAndFormatTarget(t *testing.T) {
 	tests := []struct {
-		in   string
-		user string
-		host string
-		port string
-		out  string
+		in     string
+		user   string
+		host   string
+		port   string
+		out    string
+		isZero bool
 	}{
-		{"alice@example.com", "alice", "example.com", "", "alice@example.com"},
-		{"example.com:2222", "", "example.com", "2222", "example.com:2222"},
-		{"alice@[2001:db8::1]:22", "alice", "2001:db8::1", "22", "alice@[2001:db8::1]:22"},
-		{"alice@example.com:22", "alice", "example.com", "22", "alice@example.com:22"},
-		{"", "", "", "", ""},
+		{"alice@example.com", "alice", "example.com", "", "alice@example.com", false},
+		{"example.com:2222", "", "example.com", "2222", "example.com:2222", false},
+		{"alice@[2001:db8::1]:22", "alice", "2001:db8::1", "22", "alice@[2001:db8::1]:22", false},
+		{"alice@example.com:22", "alice", "example.com", "22", "alice@example.com:22", false},
+		{"2001:db8::1", "", "2001:db8::1", "", "[2001:db8::1]", false},
+		{"[2001:db8::1]", "", "2001:db8::1", "", "[2001:db8::1]", false},
+		{"", "", "", "", "", true},
 	}
 	for _, tt := range tests {
 		got := ParseTarget(tt.in)
 		if got.User != tt.user || got.Host != tt.host || got.Port != tt.port {
 			t.Fatalf("ParseTarget(%q) = %#v, want user=%q host=%q port=%q", tt.in, got, tt.user, tt.host, tt.port)
+		}
+		if got.IsZero() != tt.isZero {
+			t.Fatalf("ParseTarget(%q).IsZero() = %v, want %v", tt.in, got.IsZero(), tt.isZero)
 		}
 		if out := FormatTarget(got); out != tt.out {
 			t.Fatalf("FormatTarget(ParseTarget(%q)) = %q, want %q", tt.in, out, tt.out)
