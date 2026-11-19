@@ -351,3 +351,32 @@ func TestFixtureConfig(t *testing.T) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }
+
+func TestMatchCriteriaWithSpacedEquals(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Match host = alpha originalhost= beta user = alice
+Host from-spaced-equals
+`)
+
+	idx := mustIndexFile(t, cfg)
+	got := idx.HostCandidates()
+	want := []string{"alpha", "beta", "from-spaced-equals"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
+func TestLineContinuation(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, "Host alpha \\\n  beta\nMatch host gamma \\\n  originalhost delta\n")
+
+	idx := mustIndexFile(t, cfg)
+	got := idx.HostCandidates()
+	want := []string{"alpha", "beta", "delta", "gamma"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}

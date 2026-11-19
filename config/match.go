@@ -30,13 +30,10 @@ func extractMatchHosts(args []string) []string {
 		if known {
 			switch {
 			case crit.ExtractsHosts:
-				value := inlineValue
-				if !hasInline {
-					if i+1 >= len(args) {
-						continue
-					}
-					value = args[i+1]
-					i++
+				value, next := matchCriterionValue(args, i, inlineValue, hasInline)
+				i = next
+				if value == "" {
+					continue
 				}
 				for _, v := range splitCommaList(value) {
 					candidates = append(candidates, v)
@@ -48,9 +45,8 @@ func extractMatchHosts(args []string) []string {
 			case crit.Kind == option.MatchArgNone:
 				// zero-arg criterion
 			case crit.Kind == option.MatchArgValue:
-				if !hasInline && i+1 < len(args) {
-					i++
-				}
+				_, next := matchCriterionValue(args, i, inlineValue, hasInline)
+				i = next
 			}
 			continue
 		}
@@ -62,17 +58,52 @@ func extractMatchHosts(args []string) []string {
 			continue
 		}
 		if i+1 < len(args) {
-			next := strings.ToLower(strings.TrimSpace(args[i+1]))
-			nextBase := strings.TrimPrefix(next, "!")
-			if eq := strings.Index(nextBase, "="); eq >= 0 {
-				nextBase = nextBase[:eq]
+			next := strings.TrimSpace(args[i+1])
+			if next == "=" {
+				if i+2 < len(args) && !isKnownCriterionToken(args[i+2]) {
+					i += 2
+				} else {
+					i++
+				}
+				continue
 			}
-			if !isKnownCriterionToken(nextBase) {
+			if strings.HasPrefix(next, "=") {
+				// "=value" form; treat as consumed argument.
+				i++
+				continue
+			}
+			if !isKnownCriterionToken(next) {
 				i++
 			}
 		}
 	}
 	return candidates
+}
+
+func matchCriterionValue(args []string, i int, inlineValue string, hasInline bool) (string, int) {
+	if hasInline {
+		if inlineValue != "" {
+			return inlineValue, i
+		}
+		if i+1 < len(args) {
+			return args[i+1], i + 1
+		}
+		return "", i
+	}
+	if i+1 >= len(args) {
+		return "", i
+	}
+	next := strings.TrimSpace(args[i+1])
+	if next == "=" {
+		if i+2 < len(args) {
+			return args[i+2], i + 2
+		}
+		return "", i + 1
+	}
+	if strings.HasPrefix(next, "=") {
+		return strings.TrimPrefix(next, "="), i + 1
+	}
+	return args[i+1], i + 1
 }
 
 func isKnownCriterionToken(s string) bool {
