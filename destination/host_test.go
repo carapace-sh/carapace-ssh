@@ -92,3 +92,21 @@ func TestSplitSCPRemote(t *testing.T) {
 		}
 	}
 }
+
+func TestJoinSCPRemote(t *testing.T) {
+	tests := []struct {
+		target string
+		path   string
+		want   string
+	}{
+		{"host", "/path", "host:/path"},
+		{"user@[2001:db8::1]", "file.txt", "user@[2001:db8::1]:file.txt"},
+		{"", "/local/path", "/local/path"},
+		{"host", "", "host:"},
+	}
+	for _, tt := range tests {
+		if got := JoinSCPRemote(tt.target, tt.path); got != tt.want {
+			t.Fatalf("JoinSCPRemote(%q,%q) = %q, want %q", tt.target, tt.path, got, tt.want)
+		}
+	}
+}

@@ -123,6 +123,15 @@ func SplitSCPRemote(s string) (target string, path string, ok bool) {
 	return s[:idx], s[idx+1:], true
 }
 
+// JoinSCPRemote joins a remote target and path into an scp/sftp-style argument.
+// If target is empty, path is returned unchanged.
+func JoinSCPRemote(target, path string) string {
+	if target == "" {
+		return path
+	}
+	return target + ":" + path
+}
+
 func scpSeparatorIndex(s string) int {
 	inBracket := false
 	for i := 0; i < len(s); i++ {
