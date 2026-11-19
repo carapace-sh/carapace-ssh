@@ -882,3 +882,47 @@ func TestEdgeCaseFixture(t *testing.T) {
 		t.Fatalf("KnownHostsFiles() = %#v, want %#v", got, want)
 	}
 }
+
+func TestMatchNegatedNonHostCriteriaStillExtractHosts(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Match !user root host ok1
+Host h1
+
+Match host ok2 !localnetwork 10.0.0.0/8
+Host h2
+
+Match !tagged bad host ok3 tagged ""
+Host h3
+
+Match !sessiontype none originalhost ok4
+Host h4
+`)
+	idx := mustIndexFile(t, cfg)
+	if got, want := idx.HostCandidates(), []string{"h1", "h2", "h3", "h4", "ok1", "ok2", "ok3", "ok4"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
+func TestMatchCriteriaAlignmentEdgeCases(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Match canonical all host canon-host
+Host h-canon
+
+Match final host final-host originalhost final-orig
+Host h-final
+
+Match user alice host first originalhost second tagged ok
+Host h-multi
+
+Match host = spaced-host user = bob originalhost=spaced-orig
+Host h-spaced
+`)
+	idx := mustIndexFile(t, cfg)
+	if got, want := idx.HostCandidates(), []string{"canon-host", "final-host", "final-orig", "first", "h-canon", "h-final", "h-multi", "h-spaced", "second", "spaced-host", "spaced-orig"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
