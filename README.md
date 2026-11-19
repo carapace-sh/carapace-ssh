@@ -10,6 +10,7 @@
 - Tolerate unknown keywords/Match criteria and malformed lines where possible.
 - Support explicit config paths (`-F` semantics) and default user/system config discovery.
 - Parse known_hosts files for completable host enrichment (initial Phase 3 support).
+- Parse/format destination helpers for host, port, user@host, and scp remote forms (initial Phase 6 support).
 
 ## Completion-safety guarantees
 
