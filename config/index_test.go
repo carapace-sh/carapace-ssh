@@ -688,3 +688,73 @@ Host after-quoted-exec
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }
+
+func TestCRLFAndContinuationTolerance(t *testing.T) {
+	idx, err := IndexReader(strings.NewReader("Host alpha\r\nMatch host beta \\\r\n  originalhost gamma\r\nHost delta\r\n"), Source{Path: "crlf.conf", BaseDir: "."})
+	if err != nil {
+		t.Fatalf("IndexReader(): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"alpha", "beta", "delta", "gamma"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
+func TestCommentsAndQuotingDoNotBreakParsing(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+# leading comment
+Host keep # trailing comment
+  HostName kept.example # value comment
+
+Host "quoted-host" # quoted token
+  ProxyCommand ssh -W %h:%p "jump host" # quoted arg with space
+`)
+	idx := mustIndexFile(t, cfg)
+	if got, want := idx.HostCandidates(), []string{"keep", "quoted-host"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+	if got, want := idx.DeclaredHosts(), []string{"keep", "quoted-host"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("DeclaredHosts() = %#v, want %#v", got, want)
+	}
+	if f := idx.Facts("keep"); f.HostName != "kept.example" {
+		t.Fatalf("Facts(keep).HostName = %#v, want %q", f.HostName, "kept.example")
+	}
+}
+
+func TestIndexReaderIncludeBaseDirContexts(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "inc.conf"), "Host from-inc\n")
+	writeFile(t, filepath.Join(dir, "system-inc.conf"), "Host from-system-inc\n")
+
+	// Relative include resolved using BaseDir.
+	idx, err := IndexReader(strings.NewReader("Host root\nInclude inc.conf\n"), Source{Path: filepath.Join(dir, "main.conf"), BaseDir: dir})
+	if err != nil {
+		t.Fatalf("IndexReader(BaseDir): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"from-inc", "root"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates(BaseDir) = %#v, want %#v", got, want)
+	}
+
+	// System context with BaseDir resolves relative includes in that base.
+	idx, err = IndexReader(strings.NewReader("Host sysroot\nInclude system-inc.conf\n"), Source{Path: filepath.Join(dir, "ssh_config"), BaseDir: dir, System: true})
+	if err != nil {
+		t.Fatalf("IndexReader(system): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"from-system-inc", "sysroot"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates(system) = %#v, want %#v", got, want)
+	}
+}
+
+func TestMalformedAndBinaryInputIsTolerated(t *testing.T) {
+	idx, err := IndexReader(strings.NewReader("Host ok\n\x00\xff\xfe not-a-directive\nMatch host still-ok\n"), Source{Path: "bin.conf", BaseDir: "."})
+	if err != nil {
+		t.Fatalf("IndexReader(): %v", err)
+	}
+	// Best-effort parsing: must not panic and should recover valid directives.
+	got := idx.HostCandidates()
+	want := []string{"ok", "still-ok"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
