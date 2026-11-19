@@ -9,10 +9,12 @@ import (
 	"strings"
 )
 
-// Index contains parsed host candidates from ssh_config sources.
+// Index contains parsed host candidates and best-effort static facts from
+// ssh_config sources.
 type Index struct {
 	hosts    map[string]struct{}
 	declared map[string]struct{}
+	facts    map[string]HostFacts
 }
 
 // HostCandidates returns filtered, deduplicated, sorted host candidates.
@@ -31,6 +33,28 @@ func (i *Index) DeclaredHosts() []string {
 		return []string{}
 	}
 	return sortedUniqueHosts(i.declared)
+}
+
+// Facts returns best-effort static facts associated with a declared host token.
+// Facts are collected without runtime Match evaluation and are not equivalent
+// to ssh -G resolution.
+func (i *Index) Facts(host string) HostFacts {
+	if i == nil || host == "" {
+		return HostFacts{}
+	}
+	f, ok := i.facts[host]
+	if !ok {
+		return HostFacts{}
+	}
+	return cloneFacts(f)
+}
+
+// HostsWithFacts returns declared hosts that have associated static facts.
+func (i *Index) HostsWithFacts() []string {
+	if i == nil {
+		return []string{}
+	}
+	return sortedFactsKeys(i.facts)
 }
 
 // IndexFile indexes a single explicit config file as the entry point.
@@ -159,7 +183,11 @@ func IndexReader(r io.Reader, source Source, opts ...Option) (*Index, error) {
 }
 
 func newIndex() *Index {
-	return &Index{hosts: map[string]struct{}{}, declared: map[string]struct{}{}}
+	return &Index{
+		hosts:    map[string]struct{}{},
+		declared: map[string]struct{}{},
+		facts:    map[string]HostFacts{},
+	}
 }
 
 func makeSource(path, baseDir string, o indexOptions) Source {
@@ -220,9 +248,12 @@ func (ix *indexer) indexFile(idx *Index, path string, ctx Source, missingOK bool
 
 func (ix *indexer) indexContent(idx *Index, content []byte, ctx Source) {
 	directives := parseDirectives(content)
+	blockHosts := []string{}
+
 	for _, d := range directives {
 		switch d.keyword {
 		case "host":
+			blockHosts = blockHosts[:0]
 			for _, arg := range d.args {
 				for _, token := range splitCommaList(arg) {
 					token = normalizeHostToken(token)
@@ -233,9 +264,11 @@ func (ix *indexer) indexContent(idx *Index, content []byte, ctx Source) {
 					if isCompletableHost(token) {
 						idx.hosts[token] = struct{}{}
 					}
+					blockHosts = append(blockHosts, token)
 				}
 			}
 		case "match":
+			blockHosts = blockHosts[:0]
 			for _, token := range extractMatchHosts(d.args) {
 				token = normalizeHostToken(token)
 				if token == "" {
@@ -245,6 +278,7 @@ func (ix *indexer) indexContent(idx *Index, content []byte, ctx Source) {
 				if isCompletableHost(token) {
 					idx.hosts[token] = struct{}{}
 				}
+				blockHosts = append(blockHosts, token)
 			}
 		case "include":
 			ix.handleInclude(idx, d.args, Source{
@@ -252,6 +286,15 @@ func (ix *indexer) indexContent(idx *Index, content []byte, ctx Source) {
 				BaseDir: ctx.BaseDir,
 				System:  ctx.System,
 			})
+		default:
+			if len(blockHosts) == 0 {
+				continue
+			}
+			for _, host := range blockHosts {
+				f := idx.facts[host]
+				f.addDirective(d.keyword, d.args)
+				idx.facts[host] = f
+			}
 		}
 	}
 }

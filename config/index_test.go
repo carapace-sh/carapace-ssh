@@ -380,3 +380,80 @@ func TestLineContinuation(t *testing.T) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }
+
+func TestStaticFacts(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Host foo bar
+  HostName foo.internal
+  User alice
+  Port 2222
+  IdentityFile ~/.ssh/id_foo
+  IdentityFile ~/.ssh/id_foo2
+  CertificateFile ~/.ssh/foo-cert.pub
+  ProxyJump jump.example
+  ProxyCommand ssh -W %h:%p jump.example
+  UserKnownHostsFile ~/.ssh/known_hosts.custom
+  GlobalKnownHostsFile /etc/ssh/known_hosts.custom
+
+Host baz
+  HostName baz.internal
+
+Match host prod originalhost=prod.example user deploy
+  User produser
+  Port 2200
+
+Match exec "echo hi"
+  Host gated
+  User gateduser
+`)
+
+	idx := mustIndexFile(t, cfg)
+
+	f := idx.Facts("foo")
+	if f.HostName != "foo.internal" || f.User != "alice" || f.Port != "2222" {
+		t.Fatalf("foo basic facts = %#v", f)
+	}
+	if !reflect.DeepEqual(f.IdentityFiles, []string{"~/.ssh/id_foo", "~/.ssh/id_foo2"}) {
+		t.Fatalf("foo IdentityFiles = %#v", f.IdentityFiles)
+	}
+	if !reflect.DeepEqual(f.CertificateFiles, []string{"~/.ssh/foo-cert.pub"}) {
+		t.Fatalf("foo CertificateFiles = %#v", f.CertificateFiles)
+	}
+	if f.ProxyJump != "jump.example" {
+		t.Fatalf("foo ProxyJump = %#v", f.ProxyJump)
+	}
+	if f.ProxyCommand != "ssh -W %h:%p jump.example" {
+		t.Fatalf("foo ProxyCommand = %#v", f.ProxyCommand)
+	}
+	if !reflect.DeepEqual(f.UserKnownHostsFiles, []string{"~/.ssh/known_hosts.custom"}) {
+		t.Fatalf("foo UserKnownHostsFiles = %#v", f.UserKnownHostsFiles)
+	}
+	if !reflect.DeepEqual(f.GlobalKnownHostsFiles, []string{"/etc/ssh/known_hosts.custom"}) {
+		t.Fatalf("foo GlobalKnownHostsFiles = %#v", f.GlobalKnownHostsFiles)
+	}
+
+	if bf := idx.Facts("bar"); bf.HostName != "foo.internal" || bf.User != "alice" {
+		t.Fatalf("bar facts = %#v", bf)
+	}
+	if pf := idx.Facts("prod"); pf.User != "produser" || pf.Port != "2200" {
+		t.Fatalf("prod facts = %#v", pf)
+	}
+	if pf := idx.Facts("prod.example"); pf.User != "produser" {
+		t.Fatalf("prod.example facts = %#v", pf)
+	}
+	if gf := idx.Facts("gated"); gf.User != "gateduser" {
+		t.Fatalf("gated facts = %#v", gf)
+	}
+
+	hosts := idx.HostsWithFacts()
+	wantHosts := []string{"bar", "baz", "foo", "gated", "prod", "prod.example"}
+	if !reflect.DeepEqual(hosts, wantHosts) {
+		t.Fatalf("HostsWithFacts() = %#v, want %#v", hosts, wantHosts)
+	}
+
+	if facts := idx.Facts("unknown"); !reflect.DeepEqual(facts, HostFacts{}) {
+		t.Fatalf("Facts(unknown) = %#v, want zero", facts)
+	}
+}
