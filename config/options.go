@@ -17,6 +17,7 @@ type Option func(*indexOptions)
 
 type indexOptions struct {
 	userConfigPath   string
+	userConfigSet    bool
 	systemConfigPath string
 	homeDir          string
 	readFile         func(string) ([]byte, error)
@@ -27,7 +28,10 @@ type indexOptions struct {
 
 // WithUserConfigPath overrides the default user config path (~/.ssh/config).
 func WithUserConfigPath(path string) Option {
-	return func(o *indexOptions) { o.userConfigPath = path }
+	return func(o *indexOptions) {
+		o.userConfigPath = path
+		o.userConfigSet = true
+	}
 }
 
 // WithSystemConfigPath overrides the default system config path (/etc/ssh/ssh_config).
@@ -63,7 +67,6 @@ func WithEvalSymlinks(fn func(string) (string, error)) Option {
 func defaultOptions() indexOptions {
 	home, _ := os.UserHomeDir()
 	return indexOptions{
-		userConfigPath:   filepath.Join(home, ".ssh", "config"),
 		systemConfigPath: filepath.Join(string(filepath.Separator), "etc", "ssh", "ssh_config"),
 		homeDir:          home,
 		readFile:         os.ReadFile,
@@ -75,10 +78,16 @@ func defaultOptions() indexOptions {
 
 func (o indexOptions) defaultUserSource() Source {
 	base := filepath.Join(o.homeDir, ".ssh")
-	if o.homeDir == "" {
-		base = filepath.Dir(o.userConfigPath)
+	path := o.userConfigPath
+	if !o.userConfigSet {
+		path = filepath.Join(base, "config")
 	}
-	return Source{Path: o.userConfigPath, BaseDir: base, System: false}
+	if base == ".ssh" && o.homeDir == "" {
+		if path != "" {
+			base = filepath.Dir(path)
+		}
+	}
+	return Source{Path: path, BaseDir: base, System: false}
 }
 
 func (o indexOptions) defaultSystemSource() Source {
