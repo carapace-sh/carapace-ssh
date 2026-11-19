@@ -154,6 +154,35 @@ func DiscoverDefaultKeyPairs(home string) ([]KeyPair, error) {
 	return DiscoverKeyPairs(DefaultDir(home))
 }
 
+// AgentCandidatesFromIdentityAgent returns candidate agent socket paths based on an
+// IdentityAgent config value. It does not probe, execute, or access the network.
+//   - empty: returns candidates from lookup (SSH_AUTH_SOCK via lookup)
+//   - "none" (case-insensitive): returns nil
+//   - "SSH_AUTH_SOCK": returns the SSH_AUTH_SOCK env value if set via lookup
+//   - otherwise: returns the trimmed value as a socket path candidate
+func AgentCandidatesFromIdentityAgent(value string, lookup func(string) string) []string {
+	if lookup == nil {
+		lookup = os.Getenv
+	}
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return AgentSocketPaths(lookup)
+	}
+	if strings.EqualFold(value, "none") {
+		return nil
+	}
+	if value == "SSH_AUTH_SOCK" {
+		return AgentSocketPaths(lookup)
+	}
+	return []string{value}
+}
+
+// AgentCandidates returns candidate agent socket paths from IdentityAgent value
+// using the current process environment.
+func AgentCandidates(value string) []string {
+	return AgentCandidatesFromIdentityAgent(value, nil)
+}
+
 // AgentSocketPaths returns deduplicated candidate SSH agent socket paths from
 // environment variables in priority order (currently SSH_AUTH_SOCK). It does
 // not probe sockets, execute programs, or access the network.

@@ -151,6 +151,30 @@ func TestPairIdentityFilesDifferentDirectories(t *testing.T) {
 	}
 }
 
+func TestAgentCandidatesFromIdentityAgent(t *testing.T) {
+	lookup := func(key string) string {
+		if key == "SSH_AUTH_SOCK" {
+			return "/tmp/agent.sock"
+		}
+		return ""
+	}
+	if got := AgentCandidatesFromIdentityAgent("", lookup); !reflect.DeepEqual(got, []string{"/tmp/agent.sock"}) {
+		t.Fatalf("empty => %#v", got)
+	}
+	if got := AgentCandidatesFromIdentityAgent("none", lookup); got != nil {
+		t.Fatalf("none => %#v, want nil", got)
+	}
+	if got := AgentCandidatesFromIdentityAgent("NONE", lookup); got != nil {
+		t.Fatalf("NONE => %#v, want nil", got)
+	}
+	if got := AgentCandidatesFromIdentityAgent("SSH_AUTH_SOCK", lookup); !reflect.DeepEqual(got, []string{"/tmp/agent.sock"}) {
+		t.Fatalf("SSH_AUTH_SOCK => %#v", got)
+	}
+	if got := AgentCandidatesFromIdentityAgent("/custom/agent", lookup); !reflect.DeepEqual(got, []string{"/custom/agent"}) {
+		t.Fatalf("custom => %#v", got)
+	}
+}
+
 func TestAgentSocketPaths(t *testing.T) {
 	env := map[string]string{
 		"SSH_AUTH_SOCK": " /tmp/ssh-agent.sock ",

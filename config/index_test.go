@@ -527,6 +527,31 @@ Match exec "echo hi"
 	}
 }
 
+func TestStaticFactsAgentCandidates(t *testing.T) {
+	t.Setenv("SSH_AUTH_SOCK", "/tmp/test-agent.sock")
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Host h1
+  IdentityAgent none
+Host h2
+  IdentityAgent SSH_AUTH_SOCK
+Host h3
+  IdentityAgent /custom/agent.sock
+`)
+
+	idx := mustIndexFile(t, cfg)
+	if got := idx.Facts("h1").AgentCandidates(); got != nil {
+		t.Fatalf("h1 AgentCandidates() = %#v, want nil", got)
+	}
+	if got := idx.Facts("h2").AgentCandidates(); !reflect.DeepEqual(got, []string{"/tmp/test-agent.sock"}) {
+		t.Fatalf("h2 AgentCandidates() = %#v, want [/tmp/test-agent.sock]", got)
+	}
+	if got := idx.Facts("h3").AgentCandidates(); !reflect.DeepEqual(got, []string{"/custom/agent.sock"}) {
+		t.Fatalf("h3 AgentCandidates() = %#v, want [/custom/agent.sock]", got)
+	}
+}
+
 func TestUnreadableEntryIsNonFatal(t *testing.T) {
 	idx, err := IndexFile("/unreadable/config", WithReadFile(func(string) ([]byte, error) {
 		return nil, os.ErrPermission

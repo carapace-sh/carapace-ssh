@@ -3,6 +3,8 @@ package config
 import (
 	"sort"
 	"strings"
+
+	"github.com/carapace-sh/carapace-ssh/key"
 )
 
 // HostFacts contains best-effort static directives declared for a host.
@@ -21,6 +23,11 @@ type HostFacts struct {
 	IdentityAgent         string
 	UserKnownHostsFiles   []string
 	GlobalKnownHostsFiles []string
+}
+
+// AgentCandidates returns candidate agent socket paths derived from IdentityAgent.
+func (f HostFacts) AgentCandidates() []string {
+	return key.AgentCandidates(f.IdentityAgent)
 }
 
 func cloneFacts(f HostFacts) HostFacts {
