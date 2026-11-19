@@ -62,9 +62,14 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
   - Added tests for negated non-host Match criteria (`!user`, `!localnetwork`, `!tagged`, `!sessiontype`) preserving host extraction and for canonical/final/mixed `=`/spaced criteria alignment.
   - Added tests for negated `command`/`exec` safety and inline `exec=`/`command=` forms, canonical/final standalone forms, and unknown-criterion fallback preserving later host extraction.
 
+- [x] Additional config context/tolerance coverage:
+  - Added tests for `IndexReader` default base-dir fallback (user `~/.ssh` and system config directory contexts) when `Path`/`BaseDir` are unset.
+  - Added tolerance tests for unexpanded `%` token and `$ENV`-style forms in declared values/includes (non-fatal, preserved in static facts where applicable).
+  - Added Match host-list test confirming negated/pattern values are not completable but remain declared with static fact association.
+
 ### Remaining focus
 - Full Match criteria audit/unknown-criterion fallback improvements and additional parsing alignment cases.
-- Broader ssh_config syntax tolerance follow-ups (additional continuation/comment/escape edge cases, explicit `%`/env handling decisions).
+- Broader ssh_config syntax tolerance follow-ups (additional continuation/comment/escape edge cases, explicit `%`/env handling decisions). *(unexpanded `%`/`$ENV` forms now covered for tolerance/static preservation; expansion policy remains out of scope)*
 - Include base-dir/context parity matrix and documentation (`-F`, defaults, `IndexReader`/`IndexPaths`, user vs system, conditional include semantics).
 - Static facts contract/tests/docs (known_hosts path semantics, Match-gated association clarity).
 - known_hosts policy/normalization follow-ups (revisit `@cert-authority` literal-host contribution policy, IPv6 form consistency across packages, `none`/multi-path enrichment integration from config-declared paths).
@@ -118,7 +123,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 
 **Plan**
 - [ ] Define/document include path-resolution rules per context (default user, default system, explicit `-F`, `IndexPaths` source, `IndexReader`) including precedence/fallback behavior for relative paths.
-- [~] Add tests for: system config including `ssh_config.d/*` and nested relative includes, `-F` file with relative/glob/quoted includes, `IndexReader` with/without `Path`/`BaseDir`/`System`, and user/system base-dir expectations. *(substantial coverage exists, including reader base-dir contexts; parity matrix/documentation pending)* *(substantial coverage exists; parity matrix/documentation pending)*
+- [~] Add tests for: system config including `ssh_config.d/*` and nested relative includes, `-F` file with relative/glob/quoted includes, `IndexReader` with/without `Path`/`BaseDir`/`System`, and user/system base-dir expectations. *(substantial coverage exists, including reader explicit/default base-dir contexts; parity matrix/documentation pending)* *(substantial coverage exists; parity matrix/documentation pending)*
 - [x] Decide and codify behavior for `Include` inside `Host`/`Match` blocks (recommended: keep conservative follow for completion discovery unless it causes material correctness issues, but make it explicit and regression-tested). *(currently followed for discovery; covered by tests)*
 - [ ] Preserve non-fatal handling for missing/unreadable/no-match includes and deterministic processing of glob results.
 - [ ] Review `~`/path handling in include args (and interactions with quoted/`=` forms); avoid expanding tokens/env in unsafe or surprising ways.
@@ -180,7 +185,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 ### 7. Fuzzing, regression matrix, and documentation
 
 **Plan**
-- [~] Extend fuzz seeds/corpora for high-value combinations: *(config/knownhosts seeds expanded with negated/inline command-exec, empty/unknown/canonical-final forms; short and 15s targeted fuzz runs passed on core parsers; further cases pending)*
+- [~] Extend fuzz seeds/corpora for high-value combinations: *(config/knownhosts seeds expanded with negated/inline command-exec, empty/unknown/canonical-final forms; short, 10s, and 15s targeted fuzz runs passed on core parsers; further cases pending)*
   - `Match` with `exec/command` (complex quoting), `all/canonical/final`, unknown/new criteria, `sessiontype`, negations, empty args, continuations, and `= / spaced =` forms.
   - `Include` graphs: nested, globbed, quoted, relative, `-F` isolation, reader contexts, symlink/cycle cases, missing/unreadable targets, and conditional placement in `Host`/`Match` blocks.
   - `known_hosts`: markers, hashed, mixed literal/wildcard/negated tokens, `[ipv4]:port`, `[ipv6]:port`, malformed fields/hashes/markers.
