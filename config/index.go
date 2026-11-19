@@ -11,7 +11,8 @@ import (
 
 // Index contains parsed host candidates from ssh_config sources.
 type Index struct {
-	hosts map[string]struct{}
+	hosts    map[string]struct{}
+	declared map[string]struct{}
 }
 
 // HostCandidates returns filtered, deduplicated, sorted host candidates.
@@ -22,6 +23,16 @@ func (i *Index) HostCandidates() []string {
 	return sortedUniqueHosts(i.hosts)
 }
 
+// DeclaredHosts returns deduplicated, sorted host tokens declared in Host
+// arguments and Match host/originalhost criteria, including patterns and
+// negated forms, before completion filtering.
+func (i *Index) DeclaredHosts() []string {
+	if i == nil {
+		return []string{}
+	}
+	return sortedUniqueHosts(i.declared)
+}
+
 // IndexFile indexes a single explicit config file as the entry point.
 // It does not implicitly merge user/system defaults, but follows Include directives
 // found in the file.
@@ -30,7 +41,7 @@ func IndexFile(path string, opts ...Option) (*Index, error) {
 	for _, opt := range opts {
 		opt(&o)
 	}
-	idx := &Index{hosts: map[string]struct{}{}}
+	idx := newIndex()
 	if path == "" {
 		return idx, nil
 	}
@@ -49,7 +60,7 @@ func IndexDefault(opts ...Option) (*Index, error) {
 	for _, opt := range opts {
 		opt(&o)
 	}
-	idx := &Index{hosts: map[string]struct{}{}}
+	idx := newIndex()
 	var errs []error
 	for _, source := range []Source{o.defaultUserSource(), o.defaultSystemSource()} {
 		if err := indexSource(idx, source, o); err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -68,7 +79,7 @@ func IndexPaths(sources []Source, opts ...Option) (*Index, error) {
 	for _, opt := range opts {
 		opt(&o)
 	}
-	idx := &Index{hosts: map[string]struct{}{}}
+	idx := newIndex()
 	var errs []error
 	for _, source := range sources {
 		if source.Path != "" {
@@ -94,7 +105,7 @@ func IndexReader(r io.Reader, source Source, opts ...Option) (*Index, error) {
 	for _, opt := range opts {
 		opt(&o)
 	}
-	idx := &Index{hosts: map[string]struct{}{}}
+	idx := newIndex()
 	if r == nil {
 		return idx, nil
 	}
@@ -125,6 +136,10 @@ func IndexReader(r io.Reader, source Source, opts ...Option) (*Index, error) {
 
 	ix.indexContent(idx, content, source)
 	return idx, nil
+}
+
+func newIndex() *Index {
+	return &Index{hosts: map[string]struct{}{}, declared: map[string]struct{}{}}
 }
 
 func makeSource(path, baseDir string, o indexOptions) Source {
@@ -191,6 +206,10 @@ func (ix *indexer) indexContent(idx *Index, content []byte, ctx Source) {
 			for _, arg := range d.args {
 				for _, token := range splitCommaList(arg) {
 					token = normalizeHostToken(token)
+					if token == "" {
+						continue
+					}
+					idx.declared[token] = struct{}{}
 					if isCompletableHost(token) {
 						idx.hosts[token] = struct{}{}
 					}
@@ -199,6 +218,10 @@ func (ix *indexer) indexContent(idx *Index, content []byte, ctx Source) {
 		case "match":
 			for _, token := range extractMatchHosts(d.args) {
 				token = normalizeHostToken(token)
+				if token == "" {
+					continue
+				}
+				idx.declared[token] = struct{}{}
 				if isCompletableHost(token) {
 					idx.hosts[token] = struct{}{}
 				}

@@ -43,6 +43,11 @@ Match host baz,*.skip,!nope
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
+	declared := idx.DeclaredHosts()
+	wantDeclared := []string{"!negated", "!nope", "*.skip", "*.wild", "?q", "[abc]", "bar", "baz", "foo", "spaced host"}
+	if !reflect.DeepEqual(declared, wantDeclared) {
+		t.Fatalf("DeclaredHosts() = %#v, want %#v", declared, wantDeclared)
+	}
 }
 
 func TestMatchExecDoesNotExecuteAndStillIndexes(t *testing.T) {
