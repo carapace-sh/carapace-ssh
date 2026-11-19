@@ -170,9 +170,10 @@ func CertificatePath(private string) string {
 	return private + "-cert.pub"
 }
 
-// PairIdentityFiles groups identity-related files by private key basename.
-// Input paths may include private keys, public keys (*.pub), and certificates
-// (*-cert.pub). Returned pairs are sorted by private key path, then base name.
+// PairIdentityFiles groups identity-related files by private key basename within
+// the same directory. Input paths may include private keys, public keys (*.pub),
+// and certificates (*-cert.pub). Returned pairs are sorted by private key path,
+// then public/certificate path.
 func PairIdentityFiles(paths []string) []KeyPair {
 	type pair struct{ private, public, cert string }
 	pairs := map[string]*pair{}
@@ -186,48 +187,52 @@ func PairIdentityFiles(paths []string) []KeyPair {
 		if name == "" {
 			continue
 		}
+		keyBase := ""
+		slot := ""
 		switch {
 		case strings.HasSuffix(name, "-cert.pub"):
-			base := strings.TrimSuffix(name, "-cert.pub")
-			if base == "" {
-				continue
-			}
-			p := pairs[base]
-			if p == nil {
-				p = &pair{}
-				pairs[base] = p
-			}
-			p.cert = filepath.Join(dir, name)
+			keyBase = strings.TrimSuffix(name, "-cert.pub")
+			slot = "cert"
 		case strings.HasSuffix(name, ".pub"):
-			base := strings.TrimSuffix(name, ".pub")
-			if base == "" || strings.HasSuffix(base, "-cert") {
+			keyBase = strings.TrimSuffix(name, ".pub")
+			if keyBase == "" || strings.HasSuffix(keyBase, "-cert") {
 				continue
 			}
-			p := pairs[base]
-			if p == nil {
-				p = &pair{}
-				pairs[base] = p
-			}
-			p.public = filepath.Join(dir, name)
+			slot = "public"
 		default:
-			p := pairs[name]
-			if p == nil {
-				p = &pair{}
-				pairs[name] = p
-			}
-			p.private = filepath.Join(dir, name)
+			keyBase = name
+			slot = "private"
+		}
+		if keyBase == "" {
+			continue
+		}
+
+		key := filepath.Clean(dir) + "\x00" + keyBase
+		p := pairs[key]
+		if p == nil {
+			p = &pair{}
+			pairs[key] = p
+		}
+		full := filepath.Join(dir, name)
+		switch slot {
+		case "cert":
+			p.cert = full
+		case "public":
+			p.public = full
+		default:
+			p.private = full
 		}
 	}
 
-	bases := make([]string, 0, len(pairs))
-	for base := range pairs {
-		bases = append(bases, base)
+	keys := make([]string, 0, len(pairs))
+	for key := range pairs {
+		keys = append(keys, key)
 	}
-	sort.Strings(bases)
+	sort.Strings(keys)
 
-	out := make([]KeyPair, 0, len(bases))
-	for _, base := range bases {
-		p := pairs[base]
+	out := make([]KeyPair, 0, len(keys))
+	for _, key := range keys {
+		p := pairs[key]
 		out = append(out, KeyPair{
 			Private:     p.private,
 			Public:      p.public,

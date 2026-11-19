@@ -3,5 +3,6 @@
 //
 // Supported forms are handled on a best-effort basis and include user@host,
 // host:port, bracketed IPv6 hosts, scp-style remote path separators, ProxyJump
-// hop specifications, sftp/scp URI forms, and remote destination parsing.
+// hop specifications, sftp/scp URI forms (including query/fragment components),
+// and remote destination parsing.
 package destination

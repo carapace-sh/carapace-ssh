@@ -176,6 +176,8 @@ func TestParseAndFormatURI(t *testing.T) {
 		{"sftp://alice@example.com:2222/dir", URI{Scheme: "sftp", User: "alice", Host: "example.com", Port: "2222", Path: "/dir"}, true, "sftp://alice@example.com:2222/dir"},
 		{"scp://bob@[2001:db8::1]/x", URI{Scheme: "scp", User: "bob", Host: "2001:db8::1", Path: "/x"}, true, "scp://bob@[2001:db8::1]/x"},
 		{"sftp://host/path%20with%20space?download=1#frag", URI{Scheme: "sftp", Host: "host", Path: "/path%20with%20space", RawQuery: "download=1", Fragment: "frag"}, true, "sftp://host/path%20with%20space?download=1#frag"},
+		{"sftp://host?x=1", URI{Scheme: "sftp", Host: "host", Path: "", RawQuery: "x=1"}, true, "sftp://host?x=1"},
+		{"sftp://host/#frag", URI{Scheme: "sftp", Host: "host", Path: "/", Fragment: "frag"}, true, "sftp://host/#frag"},
 		{"SFTP://host", URI{Scheme: "sftp", Host: "host", Path: ""}, true, "sftp://host"},
 		{"host:/path", URI{}, false, ""},
 		{"not-a-uri", URI{}, false, ""},
@@ -214,6 +216,8 @@ func TestParseRemote(t *testing.T) {
 	}{
 		{"sftp://alice@example.com:2222/dir", Remote{Scheme: "sftp", Target: Target{User: "alice", Host: "example.com", Port: "2222"}, Path: "/dir", URI: true}, true, "sftp://alice@example.com:2222/dir"},
 		{"scp://host/path", Remote{Scheme: "scp", Target: Target{Host: "host"}, Path: "/path", URI: true}, true, "scp://host/path"},
+		{"sftp://host/path%20with%20space?download=1#frag", Remote{Scheme: "sftp", Target: Target{Host: "host"}, Path: "/path%20with%20space", RawQuery: "download=1", Fragment: "frag", URI: true}, true, "sftp://host/path%20with%20space?download=1#frag"},
+		{"sftp://host?x=1", Remote{Scheme: "sftp", Target: Target{Host: "host"}, Path: "", RawQuery: "x=1", URI: true}, true, "sftp://host?x=1"},
 		{"user@host:/path", Remote{Target: Target{User: "user", Host: "host"}, Path: "/path"}, true, "user@host:/path"},
 		{"[2001:db8::1]:/file", Remote{Target: Target{Host: "2001:db8::1"}, Path: "/file"}, true, "[2001:db8::1]:/file"},
 		{"host:", Remote{Target: Target{Host: "host"}, Path: ""}, true, "host:"},

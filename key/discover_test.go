@@ -134,6 +134,23 @@ func TestPairIdentityFiles(t *testing.T) {
 	}
 }
 
+func TestPairIdentityFilesDifferentDirectories(t *testing.T) {
+	paths := []string{
+		"/home/alice/.ssh/id_ed25519",
+		"/home/alice/.ssh/id_ed25519.pub",
+		"/srv/keys/id_ed25519",
+		"/srv/keys/id_ed25519-cert.pub",
+	}
+	pairs := PairIdentityFiles(paths)
+	want := []KeyPair{
+		{Private: "/home/alice/.ssh/id_ed25519", Public: "/home/alice/.ssh/id_ed25519.pub"},
+		{Private: "/srv/keys/id_ed25519", Certificate: "/srv/keys/id_ed25519-cert.pub"},
+	}
+	if !reflect.DeepEqual(pairs, want) {
+		t.Fatalf("PairIdentityFiles(mixed dirs) = %#v, want %#v", pairs, want)
+	}
+}
+
 func TestDiscoverKeyPairs(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "id_ed25519"))
