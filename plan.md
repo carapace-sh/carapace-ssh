@@ -203,3 +203,9 @@ Initial driver: [carapace-bin#3935](https://github.com/carapace-sh/carapace-bin/
 - Includes (glob/quoted/relative/nested/cycles) and `-F` isolation behave as specified and tested.
 - carapace-bin uses the library for `net.ssh.Hosts`, and #3935’s regression scenarios pass.
 - Project is MIT-licensed with no legacy ssh_config fork dependency.
+
+## Status
+
+- **Phase 0 (Bootstrap):** complete — module, MIT license, README, AGENTS, and initial config package added.
+- **Phase 1 (MVP tolerant ssh_config indexer & host candidates):** in progress/initial implementation landed — config parsing, Match host/originalhost extraction without execution, Include resolution (glob/relative/quoted/`=`/tilde/cycles/non-fatal missing), explicit/default source helpers (`IndexFile`, `IndexDefault`, `IndexPaths`, `IndexReader`), deterministic filtered host candidates, and tests including safety/non-execution and #3935-style cases.
+- **Phase 2+:** not started in this repository yet (carapace-bin integration and later enrichment/metadata phases).
