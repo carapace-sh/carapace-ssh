@@ -77,6 +77,13 @@ func TestParseAndFormatTarget(t *testing.T) {
 			t.Fatalf("FormatTarget(ParseTarget(%q)) = %q, want %q", tt.in, out, tt.out)
 		}
 	}
+
+	if !(HostPort{}).IsZero() || !(Target{}).IsZero() {
+		t.Fatal("zero HostPort/Target should report IsZero()")
+	}
+	if (HostPort{Host: "h"}).IsZero() || (Target{User: "u"}).IsZero() {
+		t.Fatal("non-zero HostPort/Target should not report IsZero()")
+	}
 }
 
 func TestSplitSCPRemote(t *testing.T) {
@@ -253,5 +260,35 @@ func TestParseRemote(t *testing.T) {
 		if out := FormatRemote(got); out != tt.out {
 			t.Fatalf("FormatRemote(ParseRemote(%q)) = %q, want %q", tt.in, out, tt.out)
 		}
+	}
+}
+
+func TestURIAndRemoteConversions(t *testing.T) {
+	uri := URI{Scheme: "sftp", User: "alice", Host: "example.com", Port: "22", Path: "/dir", RawQuery: "x=1", Fragment: "f"}
+	remote := uri.ToRemote()
+	wantRemote := Remote{Scheme: "sftp", Target: Target{User: "alice", Host: "example.com", Port: "22"}, Path: "/dir", RawQuery: "x=1", Fragment: "f", URI: true}
+	if remote != wantRemote {
+		t.Fatalf("URI.ToRemote() = %#v, want %#v", remote, wantRemote)
+	}
+	gotURI, ok := remote.ToURI()
+	if !ok || gotURI != uri {
+		t.Fatalf("Remote.ToURI() = (%#v,%v), want (%#v,true)", gotURI, ok, uri)
+	}
+	if out := FormatRemote(remote); out != "sftp://alice@example.com:22/dir?x=1#f" {
+		t.Fatalf("FormatRemote(remote) = %q", out)
+	}
+
+	scpRemote := Remote{Target: Target{Host: "host"}, Path: "/path"}
+	if _, ok := scpRemote.ToURI(); ok {
+		t.Fatal("scp Remote.ToURI() ok=true, want false")
+	}
+	if scpRemote.IsZero() {
+		t.Fatal("non-zero scp Remote should not be IsZero()")
+	}
+	if !(URI{}).IsZero() || !(Remote{}).IsZero() {
+		t.Fatal("zero URI/Remote should report IsZero()")
+	}
+	if (URI{Scheme: "sftp"}).IsZero() || (Remote{URI: true}).IsZero() {
+		t.Fatal("non-zero URI/Remote should not report IsZero()")
 	}
 }

@@ -11,6 +11,11 @@ type HostPort struct {
 	Port string
 }
 
+// IsZero reports whether the host and port are both empty.
+func (h HostPort) IsZero() bool {
+	return h.Host == "" && h.Port == ""
+}
+
 // ParseHostPort parses host, [host], host:port, and [host]:port forms.
 // It is tolerant and intended for completion helpers, not strict validation.
 func ParseHostPort(s string) HostPort {
@@ -235,6 +240,18 @@ func (u URI) IsZero() bool {
 		u.Path == "" && u.RawQuery == "" && u.Fragment == ""
 }
 
+// ToRemote converts the URI to a remote destination.
+func (u URI) ToRemote() Remote {
+	return Remote{
+		Scheme:   u.Scheme,
+		Target:   Target{User: u.User, Host: u.Host, Port: u.Port},
+		Path:     u.Path,
+		RawQuery: u.RawQuery,
+		Fragment: u.Fragment,
+		URI:      true,
+	}
+}
+
 // ParseURI parses an scp/sftp-style destination URI. It returns ok=false for
 // strings without a recognized URI scheme separator.
 func ParseURI(s string) (URI, bool) {
@@ -309,6 +326,23 @@ type Remote struct {
 func (r Remote) IsZero() bool {
 	return r.Scheme == "" && r.Target.IsZero() && r.Path == "" &&
 		r.RawQuery == "" && r.Fragment == "" && !r.URI
+}
+
+// ToURI converts the remote destination to a URI when it represents a URI
+// remote.
+func (r Remote) ToURI() (URI, bool) {
+	if !r.URI {
+		return URI{}, false
+	}
+	return URI{
+		Scheme:   r.Scheme,
+		User:     r.Target.User,
+		Host:     r.Target.Host,
+		Port:     r.Target.Port,
+		Path:     r.Path,
+		RawQuery: r.RawQuery,
+		Fragment: r.Fragment,
+	}, true
 }
 
 // ParseRemote parses a remote destination from either URI or scp-style syntax.
