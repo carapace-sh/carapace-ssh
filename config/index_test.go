@@ -434,6 +434,47 @@ func TestFixtureConfig(t *testing.T) {
 	}
 }
 
+func TestMatchEmptyCriteriaArgs(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Match tagged "" host from-empty-tagged
+Host tagged-host
+
+Match command "" host from-empty-command
+Host command-host
+`)
+
+	idx := mustIndexFile(t, cfg)
+	got := idx.HostCandidates()
+	want := []string{"command-host", "from-empty-command", "from-empty-tagged", "tagged-host"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
+func TestIncludeInsideHostBlockFollowed(t *testing.T) {
+	dir := t.TempDir()
+	base := filepath.Join(dir, "cfg")
+	writeFile(t, filepath.Join(base, "inc.conf"), "Host included-via-host-block\n")
+	writeFile(t, filepath.Join(base, "main.conf"), `
+Host wrapper
+  Include inc.conf
+  HostName wrapper.internal
+
+Host outside
+`)
+	idx := mustIndexFile(t, filepath.Join(base, "main.conf"))
+	got := idx.HostCandidates()
+	want := []string{"included-via-host-block", "outside", "wrapper"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+	if f := idx.Facts("wrapper"); f.HostName != "wrapper.internal" {
+		t.Fatalf("Facts(wrapper).HostName = %#v, want %q", f.HostName, "wrapper.internal")
+	}
+}
+
 func TestMatchCriteriaWithSpacedEquals(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -482,7 +523,7 @@ Host foo bar
 
 Host baz
   HostName baz.internal
-  GlobalKnownHostsFile /etc/ssh/known_hosts.shared /etc/ssh/known_hosts.custom
+  GlobalKnownHostsFile /etc/ssh/known_hosts.shared none /etc/ssh/known_hosts.custom
 
 Match host prod originalhost=prod.example user deploy
   User produser

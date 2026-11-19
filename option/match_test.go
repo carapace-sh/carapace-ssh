@@ -13,7 +13,7 @@ func TestLookupMatchCriterion(t *testing.T) {
 		{name: "host", kind: MatchArgValue, hosts: true, known: true},
 		{name: "!originalhost", kind: MatchArgValue, hosts: true, known: true},
 		{name: "exec", kind: MatchArgRest, known: true},
-		{name: "command=echo hi", kind: MatchArgRest, known: true},
+		{name: "command=echo hi", kind: MatchArgValue, known: true},
 		{name: "all", kind: MatchArgNone, known: true, zeroArg: true},
 		{name: "canonical", kind: MatchArgNone, known: true, zeroArg: true},
 		{name: "final", kind: MatchArgNone, known: true, zeroArg: true},

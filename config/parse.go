@@ -91,12 +91,14 @@ func splitArgs(s string) []string {
 	inSingle := false
 	inDouble := false
 	escaped := false
+	tokenStarted := false
 	flush := func() {
-		if cur.Len() == 0 {
+		if !tokenStarted {
 			return
 		}
 		args = append(args, cur.String())
 		cur.Reset()
+		tokenStarted = false
 	}
 
 	for i := 0; i < len(s); i++ {
@@ -104,21 +106,25 @@ func splitArgs(s string) []string {
 		if escaped {
 			cur.WriteByte(c)
 			escaped = false
+			tokenStarted = true
 			continue
 		}
 		if c == '\\' && !inSingle {
 			escaped = true
+			tokenStarted = true
 			continue
 		}
 		switch c {
 		case '\'':
 			if !inDouble {
 				inSingle = !inSingle
+				tokenStarted = true
 				continue
 			}
 		case '"':
 			if !inSingle {
 				inDouble = !inDouble
+				tokenStarted = true
 				continue
 			}
 		}
@@ -127,6 +133,7 @@ func splitArgs(s string) []string {
 			continue
 		}
 		cur.WriteByte(c)
+		tokenStarted = true
 	}
 	if escaped {
 		cur.WriteByte('\\')

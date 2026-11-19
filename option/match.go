@@ -26,7 +26,7 @@ var matchCriteria = map[string]MatchCriterion{
 	"canonical":    {Name: "canonical", Kind: MatchArgNone},
 	"final":        {Name: "final", Kind: MatchArgNone},
 	"exec":         {Name: "exec", Kind: MatchArgRest},
-	"command":      {Name: "command", Kind: MatchArgRest},
+	"command":      {Name: "command", Kind: MatchArgValue},
 	"host":         {Name: "host", Kind: MatchArgValue, ExtractsHosts: true},
 	"originalhost": {Name: "originalhost", Kind: MatchArgValue, ExtractsHosts: true},
 	"user":         {Name: "user", Kind: MatchArgValue},
