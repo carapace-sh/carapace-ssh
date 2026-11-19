@@ -52,6 +52,7 @@ Explicit config path:
 index, err := config.IndexFile("/path/to/ssh_config")
 hosts := index.HostCandidates()
 declared := index.DeclaredHosts() // includes patterns/negations before filtering
+facts := index.Facts("myhost")     // best-effort static directives
 ```
 
 Other config helpers: `IndexConfig(path, ...)`, `IndexDefault(...)`, `IndexPaths(...)`, `IndexReader(...)`.
