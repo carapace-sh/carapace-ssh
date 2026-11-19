@@ -174,3 +174,17 @@ mixed.example,*.wild.example,!neg.example,[2001:db8::2]:22 ssh-ed25519 AAAA
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }
+
+func TestKnownHostsFixture(t *testing.T) {
+	idx, err := IndexFile(filepath.Join("testdata", "hosts-known_hosts"))
+	if err != nil {
+		t.Fatalf("IndexFile(): %v", err)
+	}
+	// @revoked excluded, hashed skipped, wildcard/negated filtered; CA literal
+	// hosts may be included when explicitly present. Bracketed IPv6 extracted raw.
+	got := idx.HostCandidates()
+	want := []string{"140.82.121.4", "2001:db8::1", "ca-literal.example", "example.com", "github.com", "mixed.example"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}

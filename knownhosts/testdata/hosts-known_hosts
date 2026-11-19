@@ -1,0 +1,7 @@
+# sample known_hosts fixture
+github.com,140.82.121.4 ssh-ed25519 AAAA
+[example.com]:2222,[2001:db8::1]:2222 ssh-rsa AAAA
+@cert-authority ca-literal.example,*.wild.example ssh-rsa AAAA
+@revoked revoked.example,still-revoked.example ssh-rsa AAAA
+|1|hashsalt|hashvalue ssh-rsa AAAA
+mixed.example,*.skip.example,!neg.example ssh-ed25519 AAAA

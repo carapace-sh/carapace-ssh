@@ -1079,3 +1079,27 @@ Match host good,!bad,*.skip
 		t.Fatalf("Facts(!bad).User = %#v, want %q", f.User, "alice")
 	}
 }
+
+func TestMatchHostExtractionOrderWithExec(t *testing.T) {
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "marker.txt")
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Match host before-exec exec "sh -c 'echo x > `+marker+`'"
+Host after-1
+
+Match exec "sh -c 'echo x > `+marker+`'" host after-exec
+Host after-2
+`)
+	idx := mustIndexFile(t, cfg)
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("marker file should not exist, stat err=%v", err)
+	}
+	// host extracted before exec is recoverable; host after exec may not be due to
+	// opaque command-text safety (must not execute or misparse command as criteria).
+	got := idx.HostCandidates()
+	want := []string{"after-1", "after-2", "before-exec"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
