@@ -11,6 +11,7 @@ func FuzzIndexReader(f *testing.F) {
 		"Host example.com\n  User alice\n",
 		"Host *\n  HostName ignored\n",
 		"Match host foo,bar originalhost baz exec \"echo hi\"\n  Host qux\n",
+		"Match sessiontype shell host sessioned\n  Host session-target\n",
 		"Include /nonexistent/*.conf\nInclude ~/missing\nHost included\n",
 		"Match=host = alpha originalhost= beta\nHost gamma\n",
 		"Host a \\\n  b\n",

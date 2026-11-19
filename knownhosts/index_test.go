@@ -25,8 +25,9 @@ func TestIndexFileParsesKnownHosts(t *testing.T) {
 # comment
 github.com,140.82.121.4 ssh-ed25519 AAAA
 [example.com]:2222,[10.0.0.1]:2222 ssh-rsa AAAA
+[2001:db8::1]:2222 ssh-ed25519 AAAA
 @cert-authority *.trusted.example,ca.example ssh-rsa AAAA
-@revoked revoked.example ssh-rsa AAAA
+@revoked revoked.example,also-revoked.example ssh-rsa AAAA
 |1|hashsalt|hashvalue ssh-rsa AAAA
 [bad host]:22 ssh-rsa AAAA
 `)
@@ -37,7 +38,8 @@ github.com,140.82.121.4 ssh-ed25519 AAAA
 	}
 	got := idx.HostCandidates()
 	// @revoked entries must not be suggested; @cert-authority may contribute literal hosts.
-	want := []string{"10.0.0.1", "140.82.121.4", "ca.example", "example.com", "github.com"}
+	// Bracketed IPv6 addresses are extracted as raw IPv6 literals.
+	want := []string{"10.0.0.1", "140.82.121.4", "2001:db8::1", "ca.example", "example.com", "github.com"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
