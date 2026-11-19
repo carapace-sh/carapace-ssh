@@ -1,8 +1,6 @@
 # ssh_config Syntax and Tolerant Parsing
 
-Parsing model for OpenSSH client configuration as needed by a completion-safe indexer. The goal is robust extraction of host/include information, not strict `ssh -G` evaluation.
-
-> **Source of truth**: [plan.md](../../../plan.md), Phase 1 requirements. For Match-specific behavior see [match.md](match.md); for include graph rules see [include.md](include.md).
+Parsing model for OpenSSH client configuration as needed by a completion-safe indexer. The goal is robust extraction of host/include information, not strict `ssh -G` evaluation. For Match-specific behavior see [match.md](match.md); for include graph rules see [include.md](include.md).
 
 ## Scope
 
@@ -40,7 +38,7 @@ A tolerant tokenizer should aim to:
 - preserve original token forms where useful for raw extraction, while normalizing for keyword matching
 - allow best-effort recovery after malformed lines (continue scanning subsequent lines)
 
-Avoid assumptions that require full OpenSSH grammar fidelity unless required for the MVP extraction goals.
+Avoid assumptions that require full OpenSSH grammar fidelity unless required for the extraction goals.
 
 ## Block structure (indexing view)
 
@@ -83,7 +81,7 @@ This parser is for **indexing/extraction**. It must not:
 - evaluate `Match exec`, `Match command`, or dynamic/network/user-state criteria
 - claim `ssh -G` parity
 
-Strict evaluation, if ever added, belongs in a separate opt-in layer (see [overview.md](overview.md), Phase 6+).
+Strict evaluation, if ever added, belongs in a separate opt-in layer (see [overview.md](overview.md)).
 
 ## Related
 

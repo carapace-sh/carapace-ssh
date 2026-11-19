@@ -2,13 +2,11 @@
 
 Rules and constraints for following `Include` directives when indexing ssh_config for completion. Include handling must be tolerant, cycle-safe, and side-effect-free.
 
-> **Source of truth**: [plan.md](../../../plan.md), Phase 1 behavioral spec.
-
 ## Purpose
 
 `Include` can pull host declarations and further includes from other files. The indexer must follow includes to build a complete host-candidate view, but without executing commands or failing the entire index because one include is missing.
 
-## Supported behaviors (MVP)
+## Supported behaviors
 
 - **Recognize `Include` directives** case-insensitively, with optional `=` and flexible whitespace (see [ssh-config-syntax.md](ssh-config-syntax.md)).
 - **Expand `~`** in include paths.
@@ -23,14 +21,14 @@ Rules and constraints for following `Include` directives when indexing ssh_confi
 
 Relative path resolution must be **explicitly defined and tested** because OpenSSH behavior differs by context/version.
 
-Planned/default contexts (configurable; finalize with tests):
+Common contexts (configurable; define and test explicitly):
 - **User config context**: relative to `~/.ssh` for certain cases (commonly relevant to default user config resolution).
 - **System config context**: relative to `/etc/ssh`.
 - **Including-file directory**: relative includes may be resolved relative to the file containing the directive depending on context/rules chosen.
 
 Implementation should model context via an explicit source/options type (e.g. `Source { Path, BaseDir, System }` or equivalent options) rather than hidden globals. Callers/tests must be able to control base dirs and roots.
 
-**Open question from plan:** token expansion (e.g. `%h`, `%u`) is not statically available for completion-safe indexing; do not attempt runtime expansion. Document and test chosen static resolution rules for compatibility with common OpenSSH setups.
+Token expansion (e.g. `%h`, `%u`) is generally not statically available for completion-safe indexing; avoid runtime expansion. Document and test chosen static resolution rules for compatibility with common OpenSSH setups.
 
 ## Globbing
 
@@ -63,13 +61,13 @@ Implementation should model context via an explicit source/options type (e.g. `S
 ## Interaction with config sources
 
 - **Explicit config path (`-F`)**: read only that file as the entry (no implicit merge of system/user defaults) but follow its `Include`s.
-- **Default discovery**: index user/system entry points and their includes under appropriate base dirs. Drop-in defaults (e.g. `/etc/ssh/ssh_config.d/*.conf`) are a Phase 2 consideration with clearly defined, tested rules.
+- **Default discovery**: index user/system entry points and their includes under appropriate base dirs. Drop-in defaults (e.g. `/etc/ssh/ssh_config.d/*.conf`) should be added only with clearly defined, tested rules.
 
 See [defaults.md](defaults.md).
 
 ## Testing expectations
 
-Minimum coverage (from plan):
+Recommended coverage:
 - nested includes
 - glob includes
 - quoted paths and paths with spaces

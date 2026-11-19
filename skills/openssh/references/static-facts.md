@@ -1,14 +1,12 @@
 # Static Per-Host Facts
 
-Extraction of useful declared directives per host/block without dynamic evaluation (Phase 4). Enables richer completion (identity files, users, ports, jump hosts) while staying completion-safe.
-
-> **Source of truth**: [plan.md](../../../plan.md), Phase 4.
+Extraction of useful declared directives per host/block without dynamic evaluation. Enables richer completion (identity files, users, ports, jump hosts) while staying completion-safe.
 
 ## Goal
 
-The ssh_config index/model retains statically present directive facts and exposes query APIs (`Facts`, `HostsWithFacts`, `KnownHostsFiles`) for best-effort per-host information. This does **not** attempt `ssh -G` parity or runtime condition evaluation.
+A config index/model can retain statically present directive facts and expose query APIs for best-effort per-host information (for example per-host facts, hosts with facts, and declared known_hosts file paths). This does **not** attempt `ssh -G` parity or runtime condition evaluation.
 
-## Candidate directives to retain (initial)
+## Candidate directives to retain
 
 | Directive | Completion relevance |
 |-----------|----------------------|
@@ -43,7 +41,7 @@ Do not:
 - perform canonicalization
 - execute `ssh -G` by default
 
-An opt-in strict resolution path using `ssh -G` may be considered later (Phase 6+) but must never be the default completion path.
+An opt-in strict resolution path using `ssh -G` may be considered in some implementations, but it must never be the default completion path.
 
 ## Consumer use cases
 
@@ -70,4 +68,4 @@ An opt-in strict resolution path using `ssh -G` may be considered later (Phase 6
 - [match.md](match.md) — Match blocks are parsed without evaluation.
 - [host-candidates.md](host-candidates.md) — host identity/candidate extraction.
 - [known-hosts.md](known-hosts.md) — per-host known_hosts file directives feed enrichment.
-- [integration.md](integration.md) — where carapace-bin may adopt richer actions.
+- [integration.md](integration.md) — where completers may adopt richer actions.

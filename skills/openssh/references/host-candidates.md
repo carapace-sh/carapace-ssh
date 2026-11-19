@@ -1,8 +1,6 @@
 # Host Candidates
 
-How to collect, filter, deduplicate, and expose host candidates from ssh_config for completion. This defines the primary MVP output that unblocks [carapace-bin#3935](https://github.com/carapace-sh/carapace-bin/pull/3935).
-
-> **Source of truth**: [plan.md](../../../plan.md), Phase 1.
+How to collect, filter, deduplicate, and expose host candidates from ssh_config for completion.
 
 ## Sources of declared candidates
 
@@ -23,12 +21,12 @@ Expose raw and/or filtered candidates as the API evolves. At minimum, provide a 
 
 ### Filtered (completable) candidates
 
-The filtered set must exclude non-completable patterns/wildcards and negations. Plan guidance:
+The filtered set must exclude non-completable patterns/wildcards and negations. Common guidance:
 - exclude tokens containing glob/wildcard/regex-like or pattern characters or whitespace as appropriate (e.g. characters in the set `* ? [ ] { } ( ) | + ^ $ !` and whitespace, consistent with current behavior)
 - correctly handle `!name` negations (negated entries are not completable hostnames)
 - do not produce empty/invalid candidates
 
-This is intended to be compatible with existing carapace-bin behavior while correctly handling cases that previously caused host loss. Exact filtering rules should be documented and tested explicitly.
+Filtering rules should be documented and tested explicitly so consumers can rely on stable behavior.
 
 ### Raw/declared candidates
 
@@ -57,7 +55,7 @@ Candidates are aggregated across the indexed config graph:
 
 See [include.md](include.md) and [defaults.md](defaults.md).
 
-## Known limitations (by design, MVP)
+## Known limitations (by design)
 
 - No dynamic evaluation: candidates come from declared syntax, not from `ssh -G`-resolved effective configuration.
 - Patterns/wildcards are generally not offered as literal completions (filtered out), unless explicitly decided otherwise.
@@ -70,7 +68,6 @@ See [include.md](include.md) and [defaults.md](defaults.md).
 - Presence of candidates when config contains `Match exec`, `Match command`, or other non-evaluable/unknown criteria.
 - `Match all` / `canonical all` tolerance.
 - Filtering of wildcards/pattern chars and negations; dedupe/sort stability.
-- Regression cases from #3935.
 
 See [testing.md](testing.md).
 
@@ -78,5 +75,5 @@ See [testing.md](testing.md).
 
 - [match.md](match.md) — safe extraction from Match criteria.
 - [ssh-config-syntax.md](ssh-config-syntax.md) — parsing/tolerance.
-- [integration.md](integration.md) — `ActionHosts` contract in carapace-bin.
+- [integration.md](integration.md) — host suggestion contracts for completers.
 - [known-hosts.md](known-hosts.md) — additional host source to merge later.

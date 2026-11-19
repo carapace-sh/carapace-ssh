@@ -1,8 +1,6 @@
 # Config Sources and Default Discovery
 
-How `carapace-ssh` should model explicit config paths (`-F`) versus default user/system configuration, and how those choices affect include resolution and host results.
-
-> **Source of truth**: [plan.md](../../../plan.md), Phase 1 and Phase 2.
+How to model explicit config paths (`-F`) versus default user/system configuration, and how those choices affect include resolution and host results.
 
 ## Design principle: explicit context
 
@@ -29,14 +27,14 @@ Helpers may index standard entry points:
 | User | `~/.ssh/config` | User SSH directory context (e.g. `~/.ssh`) |
 | System | `/etc/ssh/ssh_config` | System SSH directory context (e.g. `/etc/ssh`) |
 
-MVP must not regress #3935 behavior while providing sensible defaults. Phase 2 can expand drop-in defaults with clearly defined, tested rules.
+Default discovery should provide sensible, well-defined behavior and can include drop-in defaults when rules are clearly specified and tested.
 
-## API sketch (initial)
+## API shape (illustrative)
 
-From the plan (subject to refinement):
+Implementations commonly separate source/context description from indexing and querying, for example:
 
 ```go
-// Context for resolution (illustrative; exact types TBD)
+// Context for resolution (illustrative)
 type Source struct {
     Path    string
     BaseDir string
@@ -50,28 +48,26 @@ func (idx *Index) HostCandidates() []string
 // and/or DeclaredHosts() for richer info
 ```
 
-Possible options: custom base dir, include resolver overrides (for tests), read limits/symlink policy if needed.
+Useful options include custom base directories, include resolver overrides for tests, and read/symlink policies where needed. Keep the public surface small and stable for consumers.
 
-Public API should remain small and stable; expose only what carapace-bin and future consumers need.
-
-## Drop-in and distro-specific includes (Phase 2)
+## Drop-in and distro-specific includes
 
 Common real-world setups include drop-in directories, for example:
 - `/etc/ssh/ssh_config.d/*.conf`
 - user-side `config.d` patterns (distro/build dependent)
 
-Phase 2 guidance:
-- consider only with **clearly defined, tested rules** aligned with OpenSSH behavior expectations
+Guidance:
+- include drop-ins only with **clearly defined, tested rules** aligned with expected OpenSSH behavior
 - **do not guess destructively** (avoid surprising behavior changes)
-- make defaults/config discovery **configurable** where variation is expected
-- document default search behavior as delivered
+- make default discovery **configurable** where variation is expected
+- document the delivered search behavior
 
 ## Interaction with completers
 
-In carapace-bin, `ssh`, `scp`, and `sftp` completers pass/interpret `-F` for host completion. The library must make it easy to:
+For SSH-related completers, host/config discovery should make it easy to:
 - index the exact file specified by `-F` (isolated)
 - index discovered defaults when no `-F` is provided
-- keep behavior consistent across tools that share `ActionHosts(config string)`
+- keep behavior consistent across tools that share a common host-discovery contract
 
 See [integration.md](integration.md).
 
@@ -85,7 +81,6 @@ See [integration.md](integration.md).
 
 - **Custom `-F` isolation**: hosts/includes from user/system defaults must not leak when an explicit path is indexed, except what that file (and its includes) provides.
 - Default-path behavior tested against controlled fixtures/temp dirs (resolver overrides helpful for tests).
-- Regression coverage for #3935 scenarios under both explicit and default contexts as applicable.
 
 See [testing.md](testing.md).
 
@@ -93,4 +88,4 @@ See [testing.md](testing.md).
 
 - [include.md](include.md) — base-dir and path resolution during include traversal.
 - [host-candidates.md](host-candidates.md) — candidate extraction/filtering outputs.
-- [integration.md](integration.md) — carapace-bin `-F` and `ActionHosts` contract.
+- [integration.md](integration.md) — completer contracts and `-F` propagation.

@@ -65,7 +65,7 @@ Other config helpers: `IndexConfig(path, ...)`, `IndexDefault(...)`, `IndexPaths
 
 ## Development
 
-See [plan.md](plan.md) for the implementation roadmap and [AGENTS.md](AGENTS.md) for development notes. An OpenSSH completion knowledge base is available in [skills/openssh/](skills/openssh/).
+See [AGENTS.md](AGENTS.md) for development notes. An OpenSSH completion knowledge base is available in [skills/openssh/](skills/openssh/).
 
 ## License
 

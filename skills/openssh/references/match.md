@@ -1,8 +1,6 @@
 # Match Handling (Completion-Safe)
 
-How to parse `Match` directives for host-candidate extraction without evaluating runtime conditions or executing commands. This is the core constraint behind [carapace-bin#3935](https://github.com/carapace-sh/carapace-bin/pull/3935).
-
-> **Source of truth**: [plan.md](../../../plan.md), Phase 1 behavioral spec.
+How to parse `Match` directives for host-candidate extraction without evaluating runtime conditions or executing commands.
 
 ## Core rule: never execute
 
@@ -31,9 +29,9 @@ Include comma-separated lists and preserve awareness of `!`-negated forms as the
 | **Unknown criteria/keywords** | Must not abort parsing of the file or prevent host extraction elsewhere. Fall back safely. |
 | **Host extraction survives gating** | Hosts declared in blocks gated by non-evaluable/unsupported criteria must still be discoverable as declared candidates where applicable to extraction goals (especially `Match host|originalhost` values themselves). |
 
-## Known criteria to account for (initial/tested cases)
+## Known criteria to account for
 
-The plan and #3935 call out tolerance across criteria including:
+Tolerant handling commonly needs to account for criteria including:
 - `exec`, `command` (rest-of-line/command-like arguments; **never execute**)
 - `host`, `originalhost` (**extract**)
 - `user`, `localuser`
@@ -49,7 +47,7 @@ This list is not exhaustive; unknown criteria must be handled without aborting.
 Match criteria vary in arity and form (single value, comma-separated values, boolean-like keywords, rest-of-line command strings). Tolerant token skipping must be good enough to recover `host`/`originalhost` without over-parsing.
 
 Practical guidance:
-- Maintain (or plan for, Phase 5) explicit criterion metadata: argument arity, comma-list/value form, rest-of-line cases.
+- Use explicit criterion metadata when available: argument arity, comma-list/value form, and rest-of-line cases.
 - When arity is unknown, prefer a conservative skip strategy that does not drop subsequent `host`/`originalhost` criteria if they can be identified; but never guess in a way that causes execution.
 - `exec`/`command` typically consume the remainder relevant to the command argument; treat carefully as opaque.
 
@@ -79,7 +77,7 @@ Match canonical all
 Match localnetwork 10.0.0.0/8 user bob tagged deploy
 ```
 
-(Examples illustrate extraction/tolerance intent; exact candidate filtering follows project rules.)
+(Examples illustrate extraction/tolerance intent; exact candidate filtering follows the consumer's documented rules.)
 
 ## Safety tests
 
@@ -89,5 +87,5 @@ Configs containing `Match exec "..."` must not create side effects. Tests should
 
 - [ssh-config-syntax.md](ssh-config-syntax.md) — directive recognition and line parsing.
 - [host-candidates.md](host-candidates.md) — candidate filtering, dedupe, sorting.
-- [option-metadata.md](option-metadata.md) — future Match criterion metadata for better skipping.
-- [overview.md](overview.md) — non-goals (`ssh -G` parity, dynamic evaluation).
+- [option-metadata.md](option-metadata.md) — Match criterion metadata for better skipping.
+- [overview.md](overview.md) — non-goals and guarantees.

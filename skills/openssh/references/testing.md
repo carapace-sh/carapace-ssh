@@ -1,95 +1,95 @@
 # Testing Strategy
 
-Verification approach for `carapace-ssh`, with emphasis on completion-safety, tolerance, and regression coverage for [carapace-bin#3935](https://github.com/carapace-sh/carapace-bin/pull/3935).
-
-> **Source of truth**: [plan.md](../../../plan.md), Testing strategy and phase requirements.
+Verification approach for completion-safe OpenSSH configuration parsing/indexing, with emphasis on safety, tolerance, determinism, and regression coverage.
 
 ## Principles
 
 - **Safety first**: parsing/indexing must never execute external processes or access the network.
-- **Table-driven tests** per package with focused fixtures under `testdata/`.
+- **Table-driven tests** per component with focused fixtures.
 - **Best-effort tolerance**: unknown/malformed constructs should not prevent correct results from the rest of the config graph.
 - **Determinism**: public candidate outputs should be deduplicated and stably ordered where specified.
+- **Explicit context**: tests should control paths/base dirs/roots to avoid environment coupling.
 
 ## Test layers
 
-### Unit tests (per package)
+### Unit tests
 
-- Tokenizer/parser behavior for `Host`, `Match`, `Include` (case-insensitive, `=` forms, whitespace, comments, quoting).
-- Match criteria handling and host extraction (`host`, `originalhost`, comma lists, negations).
-- Include resolution (path/base-dir rules, globbing, recursion, cycle detection).
-- Candidate filtering, dedupe, sorting.
-- Later: known_hosts parsing, static fact extraction, metadata lookups.
+- **Syntax/tokenization/parsing**: `Host`, `Match`, `Include` recognition (case-insensitive keywords, optional `=`, flexible whitespace, comments, blank lines, quoting).
+- **Match handling**: tolerant extraction of `host`/`originalhost`, comma-separated values, negated forms, zero-arg criteria (`all`, `canonical`, `final`), argument-consuming criteria, and unknown criteria without aborting.
+- **Include resolution**: `~` expansion, relative path/base-dir rules, globbing, recursion, cycle detection, quoted/`=` forms, deterministic include processing where relevant.
+- **Host candidates**: raw/declared extraction, completable filtering (wildcards/negations/pattern tokens as specified), deduplication, and stable ordering.
+- **known_hosts**: plain/comma lists, bracketed `[host]:port`, markers (e.g. `@cert-authority`, `@revoked`), hashed hosts excluded from completion but parseable, malformed-line tolerance, merge/dedup behavior.
+- **Static facts**: directive extraction from relevant blocks, deterministic query results, and clearly defined behavior under Match-gated or ambiguous association cases.
+- **Metadata**: keyword normalization/lookup and Match criterion arity/form handling (including rest-of-line command criteria) as applicable.
 
-### Fixtures and golden/expectation cases
+### Fixtures and expectation cases
 
-- Store representative configs in `testdata/`.
-- Include real-world and reported-issue cases (especially #3935).
-- Use explicit expected candidate lists/facts to catch regressions in behavior and ordering.
+- Store representative configs and known_hosts samples as focused fixtures.
+- Include real-world edge cases and previously problematic inputs as regression cases.
+- Use explicit expected outputs (candidate lists, facts, parsed forms) to catch behavior and ordering regressions.
 
-### Safety / non-execution tests
+### Safety and non-execution tests
 
 **Critical:** configs containing `Match exec "..."` or `Match command "..."` must not create side effects.
 
 Recommended approach:
-- use a temp marker file path in the command argument (or another observable side effect)
+- use a temp marker file path or another observable side effect in the command argument
 - run indexing/extraction
 - assert the marker/side effect was **not** created
 
-Also verify no reliance on runtime connection context for parsing/indexing APIs.
+Also verify that parsing/indexing does not depend on runtime connection context.
 
-### Fuzz/property tests (later)
+### Tolerance and failure-mode tests
 
-- Fuzz tokenizer/parser on malformed/untrusted config input for robustness (no panics/crashes, bounded behavior as appropriate).
-- Property-style checks where useful (e.g. determinism/idempotence of candidate extraction on same input).
+| Condition | Expected behavior (typical) |
+|-----------|-----------------------------|
+| Unknown keyword or Match criterion | Do not abort; ignore/skip best-effort and continue. |
+| Malformed/unparseable line | Skip/recover where possible; continue with remaining content. |
+| Missing include target or empty glob match | Non-fatal; continue indexing. |
+| Unreadable include/known_hosts file | Non-fatal in best-effort flows; continue where recoverable. |
+| Include cycle | Detect and stop recursing on that edge without failing the whole index. |
 
-### Integration tests in carapace-bin (Phase 2+)
+### Source/context tests
 
-- `--macro net.ssh.Hosts(...)` regressions.
-- Completer-level positional host completion for `ssh`, `scp`, `sftp`.
-- `-F` propagation and isolation behavior.
-- End-to-end confirmation that library-backed behavior resolves #3935 scenarios.
+- **Explicit config path isolation**: indexing a specific file must not implicitly merge unrelated user/system defaults (but must follow its includes as defined).
+- **Default discovery**: test user/system entry behavior with controlled fixtures/temp directories or resolver overrides.
+- **Base-dir behavior**: cover relative include resolution for the contexts/rules you document.
 
-## Minimum coverage (MVP / Phase 1)
+### Integration tests (consumer-facing)
 
-From the plan:
+- Verify completer/tool-facing host suggestion behavior (including explicit config propagation).
+- Confirm deterministic, filtered, deduplicated output in integration contexts.
+- Add end-to-end regressions for configs that combine includes, `Match` criteria, and host declarations in ways that previously caused host loss or inconsistency.
+
+### Fuzz/property tests (optional but valuable)
+
+- Fuzz tokenizers/parsers on malformed or untrusted input for robustness (no panics/crashes, bounded behavior as appropriate).
+- Property-style checks where useful (e.g. determinism/idempotence of extraction for the same input).
+
+## Suggested coverage checklist
 
 | Area | Cases |
 |------|-------|
-| **#3935 / Match** | `Match exec`, `Match originalhost`, combined/other criteria (`user`, `localnetwork`, `tagged`, `localuser`, `command`, `version`), negated criteria/hosts, comma-separated names, `Match all` / `canonical all`. |
-| **Includes** | nested, glob, quoted paths, paths with spaces, `=` forms, relative paths, cycles, missing includes. |
-| **Sources** | custom `-F` isolation (no system/user default leakage beyond specified). |
-| **Safety** | no side effects from `Match exec` configs. |
-| **Syntax tolerance** | comments, blank lines, mixed case keywords, indentation/`=` variants. |
-
-## Phase-specific additions
-
-- **Phase 3 (known_hosts):** plain/comma lists, `[host]:port`, markers `@cert-authority`/`@revoked`, hashed hosts ignored for completion but parseable, merge/dedup behavior.
-- **Phase 4 (static facts):** directive extraction, deterministic association/query results, behavior under Match-gated blocks as defined.
-- **Phase 5 (metadata):** criterion arity/rest-of-line handling, keyword normalization, enum/value helpers if added.
+| **Match safety/extraction** | `Match exec`, `Match command`, `Match host`, `Match originalhost`, combined criteria (e.g. `user`, `localnetwork`, `tagged`, `localuser`, `version`), negations, comma-separated names, `Match all` / `canonical all`. |
+| **Includes** | nested, globbed, quoted paths, paths with spaces, `=` forms, relative paths, cycles, missing/unreadable targets. |
+| **Sources** | explicit config isolation, default discovery behavior, configurable roots/base dirs. |
+| **Syntax tolerance** | comments, blank lines, mixed-case keywords, indentation/spacing, `=` variants. |
+| **known_hosts** | plain/bracketed hosts, markers, hashed hosts ignored for completion, malformed-line tolerance, merge/dedup. |
+| **Static facts/metadata** | directive extraction, stable queries, keyword/criterion normalization and arity handling. |
 
 ## Test design guidance
 
-- Prefer small, explicit fixtures over large opaque ones; name cases by behavior (e.g. `match_exec_no_side_effect`, `include_cycle_stops`, `f_isolated_from_defaults`).
-- Use temp dirs/files for filesystem-dependent tests; control base dirs/roots via options to avoid environment coupling.
-- Assert both positive extraction (hosts found) and negative guarantees (no execution, no leakage, no wildcards in filtered output where excluded).
-- When documenting intentional behavior changes (e.g. hosts now discovered despite Match rules), encode them as expectations.
-
-## Commands
-
-Typical local verification (once module/bootstrap exists):
-
-```sh
-go test ./...
-go vet ./...
-```
-
-Run linters consistent with repo tooling (e.g. golangci-lint) when configured.
+- Prefer small, explicit fixtures over large opaque ones; name cases by behavior.
+- Use temporary directories/files for filesystem-dependent tests.
+- Assert both positive extraction and negative guarantees (no execution, no leakage, no unexpected wildcard candidates).
+- When behavior intentionally changes (for example, newly discoverable hosts), encode the new expectation and document rationale in tests/comments as appropriate.
 
 ## Related
 
-- [overview.md](overview.md) — MVP definition of done.
+- [overview.md](overview.md) — guarantees and scope.
 - [match.md](match.md) — non-execution and tolerance requirements.
-- [include.md](include.md) — resolution and cycle cases.
-- [defaults.md](defaults.md) — `-F` isolation and discovery.
-- [integration.md](integration.md) — carapace-bin regression coverage.
+- [include.md](include.md) — resolution and cycle behavior.
+- [defaults.md](defaults.md) — source selection and isolation.
+- [host-candidates.md](host-candidates.md) — filtering and determinism.
+- [known-hosts.md](known-hosts.md) — known_hosts parsing and merging.
+- [integration.md](integration.md) — consumer-facing contract checks.

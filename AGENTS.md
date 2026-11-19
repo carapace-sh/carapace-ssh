@@ -14,7 +14,6 @@ Development notes for `carapace-ssh`.
 
 - `config/` - ssh_config parsing, include resolution, indexing, host candidate extraction.
 - `*_test.go`, `testdata/` - table-driven tests and fixtures alongside packages.
-- `plan.md` - living implementation plan/phases.
 - `skills/openssh/` - knowledge base for OpenSSH config/completion behavior relevant to this library.
 
 ## Development

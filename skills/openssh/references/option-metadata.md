@@ -1,16 +1,14 @@
 # Option, Keyword, and Match Metadata
 
-Shared metadata for OpenSSH config keywords and Match criteria (Phase 5). Provides a source of truth for tolerant parsing, token skipping, and future option completion reuse.
+Shared metadata for OpenSSH config keywords and Match criteria. Provides a source of truth for tolerant parsing, token skipping, and option/value completion reuse.
 
-> **Source of truth**: [plan.md](../../../plan.md), Phase 5.
-
-The `option` package currently provides keyword/criterion normalization and lookup helpers, argument-kind metadata for Match criteria, host-extraction markers, and list APIs (`Keywords`, `MatchCriteria`) used by config parsing.
+Useful metadata includes keyword/criterion normalization and lookup helpers, argument-kind metadata for Match criteria, host-extraction markers, and list/lookup APIs for config parsing and completion.
 
 ## Goals
 
 - Centralize SSH config/CLI option knowledge for reuse across parsing and completion.
 - Improve tolerant `Match` parsing by describing criterion argument shapes.
-- Drive or validate option completion (e.g. carapace-bin `pkg/actions/net/ssh/ssh.go` `ActionOptions`).
+- Drive or validate option and value completion in consumers.
 
 ## Config keyword metadata
 
@@ -60,11 +58,11 @@ Metadata is a support layer, not a runtime evaluator.
 
 - Metadata describes syntax/shape/known values; it does not implement connection-time matching semantics.
 - Keep the package lightweight and dependency-minimal.
-- Avoid coupling metadata format to carapace-bin internals except through clear APIs/adapters.
+- Avoid coupling metadata format to a specific completer implementation except through clear APIs/adapters.
 
 ## Testing expectations
 
-- Criterion arity/form coverage for cases exercised by #3935 and common configs (`exec`/`command` rest-of-line, comma lists, zero-arg criteria).
+- Criterion arity/form coverage for common configs and tricky cases (`exec`/`command` rest-of-line, comma lists, zero-arg criteria, mixed criteria on one line).
 - Keyword normalization/lookup behavior (case-insensitivity).
 - Enum/value-type helpers (if provided) with representative options.
 - Parser integration tests showing improved recovery of `host`/`originalhost` when metadata is available.
@@ -74,4 +72,4 @@ Metadata is a support layer, not a runtime evaluator.
 - [match.md](match.md) — non-executing Match handling and token alignment.
 - [ssh-config-syntax.md](ssh-config-syntax.md) — directive recognition.
 - [static-facts.md](static-facts.md) — directive facts worth retaining.
-- [integration.md](integration.md) — option completion reuse in carapace-bin.
+- [integration.md](integration.md) — option completion reuse in completers.

@@ -1,12 +1,10 @@
 # known_hosts Parsing and Host Enrichment
 
-Support for enriching completable hosts from OpenSSH `known_hosts` files (Phase 3). This extends host sources beyond ssh_config declarations.
-
-> **Source of truth**: [plan.md](../../../plan.md), Phase 3.
+Support for enriching completable hosts from OpenSSH `known_hosts` files. This extends host sources beyond ssh_config declarations.
 
 ## Goal
 
-The `knownhosts` package parses known_hosts content, exposes completable host candidates, and provides merge/dedup helpers for combining them with config-declared hosts without side effects. It also supports configurable/default path discovery (`DefaultPaths`, `IndexDefault`) and tolerant, non-fatal handling of missing/unreadable files.
+A known_hosts parser/indexer can expose completable host candidates and merge/dedup helpers for combining them with config-declared hosts without side effects. It should support configurable/default path discovery and tolerant, non-fatal handling of missing/unreadable files.
 
 ## Line forms to handle
 
@@ -34,7 +32,7 @@ Hashed hostname entries (e.g. starting with `|1|...`) are intentionally one-way.
 APIs should support:
 - listing completable hostnames/ports from **given files**
 - listing from **default locations**: `~/.ssh/known_hosts`, `/etc/ssh/ssh_known_hosts`
-- later integration with config-derived paths: `UserKnownHostsFile`, `GlobalKnownHostsFile` (Phase 4 static facts / future helpers)
+- integration with config-derived paths when available: `UserKnownHostsFile`, `GlobalKnownHostsFile`
 
 Keep path discovery explicit/configurable; avoid hidden global state (consistent with [defaults.md](defaults.md)).
 
@@ -74,4 +72,4 @@ Consider:
 
 - [host-candidates.md](host-candidates.md) — config-sourced candidates and filtering/determinism rules.
 - [defaults.md](defaults.md) — explicit/configurable source modeling.
-- [static-facts.md](static-facts.md) — future `UserKnownHostsFile`/`GlobalKnownHostsFile` extraction.
+- [static-facts.md](static-facts.md) — `UserKnownHostsFile`/`GlobalKnownHostsFile` extraction.
