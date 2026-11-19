@@ -36,7 +36,8 @@ github.com,140.82.121.4 ssh-ed25519 AAAA
 		t.Fatalf("IndexFile(): %v", err)
 	}
 	got := idx.HostCandidates()
-	want := []string{"10.0.0.1", "140.82.121.4", "ca.example", "example.com", "github.com", "revoked.example"}
+	// @revoked entries must not be suggested; @cert-authority may contribute literal hosts.
+	want := []string{"10.0.0.1", "140.82.121.4", "ca.example", "example.com", "github.com"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}

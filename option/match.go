@@ -38,6 +38,7 @@ var matchCriteria = map[string]MatchCriterion{
 	"rdomain":      {Name: "rdomain", Kind: MatchArgValue},
 	"localport":    {Name: "localport", Kind: MatchArgValue},
 	"remoteport":   {Name: "remoteport", Kind: MatchArgValue},
+	"sessiontype":  {Name: "sessiontype", Kind: MatchArgValue},
 	"version":      {Name: "version", Kind: MatchArgValue},
 }
 

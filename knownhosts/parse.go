@@ -26,9 +26,11 @@ func parseLine(line string, add func(string)) {
 		return
 	}
 
+	marker := ""
 	// Optional markers @cert-authority / @revoked
 	switch fields[0] {
 	case "@cert-authority", "@revoked":
+		marker = fields[0]
 		if len(fields) < 2 {
 			return
 		}
@@ -37,6 +39,11 @@ func parseLine(line string, add func(string)) {
 
 	hostField := fields[0]
 	if hostField == "" {
+		return
+	}
+
+	// Revoked host keys must not be accepted; do not suggest them for completion.
+	if marker == "@revoked" {
 		return
 	}
 

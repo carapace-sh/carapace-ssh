@@ -99,6 +99,9 @@ Host tagged-host
 Match version 8.0 originalhost versioned
 Host version-host
 
+Match sessiontype shell originalhost session-host
+Host session-declared
+
 Match unknowncriterion value originalhost recovered
 Host recovered-host
 
@@ -123,6 +126,8 @@ Host exec-host
 		"prod-db",
 		"recovered",
 		"recovered-host",
+		"session-declared",
+		"session-host",
 		"tagged-host",
 		"version-host",
 		"versioned",

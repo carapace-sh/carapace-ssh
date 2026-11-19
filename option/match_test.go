@@ -18,6 +18,7 @@ func TestLookupMatchCriterion(t *testing.T) {
 		{name: "canonical", kind: MatchArgNone, known: true, zeroArg: true},
 		{name: "final", kind: MatchArgNone, known: true, zeroArg: true},
 		{name: "user", kind: MatchArgValue, known: true},
+		{name: "sessiontype", kind: MatchArgValue, known: true},
 		{name: "version", kind: MatchArgValue, known: true},
 		{name: "unknowncriterion", known: false},
 	}
@@ -53,12 +54,19 @@ func TestMatchCriteriaList(t *testing.T) {
 		}
 	}
 	foundVersion := false
+	foundSessionType := false
 	for _, c := range criteria {
 		if c.Name == "version" {
 			foundVersion = true
 		}
+		if c.Name == "sessiontype" {
+			foundSessionType = true
+		}
 	}
 	if !foundVersion {
 		t.Fatal("MatchCriteria() missing version")
+	}
+	if !foundSessionType {
+		t.Fatal("MatchCriteria() missing sessiontype")
 	}
 }
