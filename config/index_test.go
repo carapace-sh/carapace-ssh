@@ -1000,3 +1000,82 @@ Host h4
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }
+
+func TestIndexReaderDefaultBaseDirFallback(t *testing.T) {
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	writeFile(t, filepath.Join(home, ".ssh", "inc.conf"), "Host from-home-ssh\n")
+	writeFile(t, filepath.Join(dir, "etc", "ssh", "inc.conf"), "Host from-etc-ssh\n")
+
+	// No Path/BaseDir: user context falls back to ~/.ssh for relative includes.
+	idx, err := IndexReader(strings.NewReader("Host root\nInclude inc.conf\n"), Source{}, WithHomeDir(home))
+	if err != nil {
+		t.Fatalf("IndexReader(user fallback): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"from-home-ssh", "root"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates(user fallback) = %#v, want %#v", got, want)
+	}
+
+	// No Path/BaseDir, System context falls back to system config directory.
+	sysCfg := filepath.Join(dir, "etc", "ssh", "ssh_config")
+	idx, err = IndexReader(strings.NewReader("Host sysroot\nInclude inc.conf\n"), Source{System: true}, WithHomeDir(home), WithSystemConfigPath(sysCfg))
+	if err != nil {
+		t.Fatalf("IndexReader(system fallback): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"from-etc-ssh", "sysroot"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates(system fallback) = %#v, want %#v", got, want)
+	}
+}
+
+func TestUnexpandedTokensAndEnvFormsAreTolerated(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Host tok
+  HostName %h.example
+  User %r
+  IdentityFile ~/.ssh/id_%h
+  ProxyCommand ssh -W %h:%p $JUMP_HOST
+
+Include config.d/%h.conf
+Include $UNEXPANDED_CONF
+`)
+	// Must not crash; include targets with unexpanded tokens/env are non-fatal.
+	idx := mustIndexFile(t, cfg)
+	if got, want := idx.HostCandidates(), []string{"tok"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+	f := idx.Facts("tok")
+	if f.HostName != "%h.example" || f.User != "%r" {
+		t.Fatalf("Facts(tok) basic = %#v", f)
+	}
+	if !reflect.DeepEqual(f.IdentityFiles, []string{"~/.ssh/id_%h"}) {
+		t.Fatalf("Facts(tok).IdentityFiles = %#v", f.IdentityFiles)
+	}
+	if f.ProxyCommand != "ssh -W %h:%p $JUMP_HOST" {
+		t.Fatalf("Facts(tok).ProxyCommand = %#v", f.ProxyCommand)
+	}
+}
+
+func TestMatchHostListNegatedValuesDoNotBecomeCompletable(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Match host good,!bad,*.skip
+  User alice
+`)
+	idx := mustIndexFile(t, cfg)
+	if got, want := idx.HostCandidates(), []string{"good"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+	if got, want := idx.DeclaredHosts(), []string{"!bad", "*.skip", "good"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("DeclaredHosts() = %#v, want %#v", got, want)
+	}
+	// Facts are associated to declared block host tokens (static/best-effort).
+	if f := idx.Facts("good"); f.User != "alice" {
+		t.Fatalf("Facts(good).User = %#v, want %q", f.User, "alice")
+	}
+	if f := idx.Facts("!bad"); f.User != "alice" {
+		t.Fatalf("Facts(!bad).User = %#v, want %q", f.User, "alice")
+	}
+}
