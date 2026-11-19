@@ -1,7 +1,9 @@
 package config
 
 import (
+	"bytes"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -88,6 +90,38 @@ func IndexPaths(sources []Source, opts ...Option) (*Index, error) {
 	return idx, nil
 }
 
+// IndexReader indexes ssh_config content from a reader using the provided source
+// context for include resolution. The source Path, when set, is used to avoid
+// re-indexing the same logical file in include cycles.
+func IndexReader(r io.Reader, source Source, opts ...Option) (*Index, error) {
+	o := defaultOptions()
+	for _, opt := range opts {
+		opt(&o)
+	}
+	idx := &Index{hosts: map[string]struct{}{}}
+	if r == nil {
+		return idx, nil
+	}
+	content, err := io.ReadAll(r)
+	if err != nil {
+		return idx, err
+	}
+	ix := &indexer{opts: o, visited: map[string]struct{}{}}
+	if source.Path != "" {
+		if abs, absErr := o.abs(expandTilde(source.Path, o.homeDir)); absErr == nil {
+			source.Path = absPathClean(abs)
+		}
+		if source.BaseDir == "" {
+			source.BaseDir = filepath.Dir(source.Path)
+		}
+		ix.visited[source.Path] = struct{}{}
+	} else if source.BaseDir == "" && !source.System && o.homeDir != "" {
+		source.BaseDir = filepath.Join(o.homeDir, ".ssh")
+	}
+	ix.indexContent(idx, content, source)
+	return idx, nil
+}
+
 type indexer struct {
 	opts    indexOptions
 	visited map[string]struct{}
@@ -124,6 +158,15 @@ func (ix *indexer) indexFile(idx *Index, path string, ctx Source, missingOK bool
 		return err
 	}
 
+	ix.indexContent(idx, content, Source{
+		Path:    resolved.readPath,
+		BaseDir: filepath.Dir(resolved.readPath),
+		System:  ctx.System,
+	})
+	return nil
+}
+
+func (ix *indexer) indexContent(idx *Index, content []byte, ctx Source) {
 	directives := parseDirectives(content)
 	for _, d := range directives {
 		switch d.keyword {
@@ -145,18 +188,21 @@ func (ix *indexer) indexFile(idx *Index, path string, ctx Source, missingOK bool
 			}
 		case "include":
 			ix.handleInclude(idx, d.args, Source{
-				Path:    resolved.readPath,
-				BaseDir: filepath.Dir(resolved.readPath),
+				Path:    ctx.Path,
+				BaseDir: ctx.BaseDir,
 				System:  ctx.System,
 			})
 		}
 	}
-	return nil
 }
 
 type resolvedPath struct {
 	readPath string
 	visitKey string
+}
+
+func absPathClean(path string) string {
+	return filepath.Clean(path)
 }
 
 func (ix *indexer) resolvePath(path string, baseDir string, ctx Source) (resolvedPath, error) {
@@ -229,3 +275,5 @@ func expandTilde(path string, home string) string {
 func hasGlobMeta(pattern string) bool {
 	return strings.ContainsAny(pattern, "*?[")
 }
+
+var _ = bytes.Buffer{}

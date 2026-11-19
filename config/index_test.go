@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -281,5 +282,22 @@ func TestMissingEntryIsNonFatal(t *testing.T) {
 	}
 	if got := idx.HostCandidates(); len(got) != 0 {
 		t.Fatalf("HostCandidates() = %#v, want empty", got)
+	}
+}
+
+func TestIndexReader(t *testing.T) {
+	dir := t.TempDir()
+	include := filepath.Join(dir, "inc.conf")
+	writeFile(t, include, "Host from-include\n")
+	content := "Host from-reader\nInclude inc.conf\nMatch exec \"echo should-not-run\"\nHost safe\n"
+
+	idx, err := IndexReader(strings.NewReader(content), Source{Path: filepath.Join(dir, "stdin.conf"), BaseDir: dir})
+	if err != nil {
+		t.Fatalf("IndexReader(): %v", err)
+	}
+	got := idx.HostCandidates()
+	want := []string{"from-include", "from-reader", "safe"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }
