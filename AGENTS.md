@@ -19,11 +19,11 @@ go vet ./...           # static checks
   - `index.go`: `Index`, `IndexFile`, `IndexDefault`, `IndexPaths`, `IndexConfig`, `IndexReader`, `HostCandidates(path,...)`, `DefaultSources`; indexing follows `Include` directives and de-dups visited files.
   - `parse.go`: directive/token parsing (`parseDirectives`, comment/quote/escape/continuation handling, arg splitting).
   - `hosts.go`: host token normalization/filtering and deterministic sorting.
-  - `match.go`: tolerant `Match` host extraction (`host`/`originalhost`), criterion-arity-aware skipping; `exec`/`command` args are never executed (rest-of-line treated opaquely/stopped as appropriate).
-  - `facts.go`: `HostFacts` and static directive collection/association (best-effort, no runtime Match evaluation). `KnownHostsFiles()` aggregates declared `UserKnownHostsFile`/`GlobalKnownHostsFile`.
+  - `match.go`: tolerant `Match` host extraction (`host`/`originalhost`), criterion-aware skipping/alignment (including `sessiontype`, empty quoted args, and `criterion=value` forms); never executes `exec`/`command` (`exec` treated as opaque/rest-arg, `command` as value arg for alignment) and does not extract hosts from negated `host`/`originalhost` criteria.
+  - `facts.go`: `HostFacts` and static directive collection/association (best-effort, no runtime Match evaluation). `KnownHostsFiles()` aggregates declared `UserKnownHostsFile`/`GlobalKnownHostsFile`, excluding empty/case-insensitive `none` values (declared facts preserved as-is).
   - `options.go`: `Source`, functional `Option`s (`WithUserConfigPath`, `WithSystemConfigPath`, `WithHomeDir`, `WithReadFile`, `WithGlob`, `WithAbs`, `WithEvalSymlinks`), default source resolution.
-  - `config/testdata/hosts.conf`: fixture used by tests.
-- `knownhosts/` — tolerant known_hosts parsing/enrichment (`IndexFile`, `IndexPaths`, `IndexDefault`, `IndexReader`, merge helpers). Handles plain/comma-separated/bracketed `[host]:port` entries and `@cert-authority`/`@revoked`; ignores hashed (`|...`) hosts for completion.
+  - `config/testdata/`: fixtures for parsing/indexing regressions (e.g. `hosts.conf`, edge-case and include-graph fixtures).
+- `knownhosts/` — tolerant known_hosts parsing/enrichment (`IndexFile`, `IndexPaths`, `IndexDefault`, `IndexReader`, merge helpers). Handles plain/comma-separated/bracketed `[host]:port` (including bracketed IPv6, extracted as raw host) entries and `@cert-authority`/`@revoked`; excludes hashed (`|...`) and `@revoked` hosts from completable candidates.
 - `destination/` — parsing/formatting helpers for SSH/SCP/SFTP destination forms: `HostPort`, `Target` (user@host[:port]), scp remote split/join, `ProxyJump` split/parse/join, URI and `Remote` parsing/formatting; tolerant, not strict validation.
 - `key/` — completion-safe identity discovery/pairing and agent hint helpers (`DiscoverIdentityFiles`, `DiscoverDefaultIdentityFiles`, `DiscoverKeyPairs`, `PairIdentityFiles`, `AgentCandidates*`, `AgentSocketPaths`); filesystem/env inspection only.
 - `authorizedkeys/` — tolerant `authorized_keys` parsing (`ParseLine`, `IndexFile`, `IndexReader`, `IndexDefault`, `Entries`, `Comments`).
@@ -38,16 +38,16 @@ go vet ./...           # static checks
 - **Explicit context, injectable dependencies:** callers control paths/base dirs/roots; avoid hidden global state. Use `Option`s to override home/config paths and FS helpers (`readFile`, `glob`, `abs`, `evalSymlinks`) for determinism/tests.
 - **`-F` vs defaults:** explicit config path/indexing is isolated (like `-F`) but still follows its `Include`s; empty/default path discovery uses user + system configs (`IndexConfig("")` / `HostCandidates("")` / `IndexDefault`).
 - **Deterministic results:** host candidates and similar outputs are deduplicated and stably sorted.
-- **Host extraction semantics:** `HostCandidates()` returns completable literal hosts (filters patterns/wildcards/negations as per `isCompletableHost`); `DeclaredHosts()` preserves declared tokens including patterns/negations (pre-filter). `Match host`/`originalhost` contribute candidates; static facts are associated without runtime evaluation (not `ssh -G` parity).
+- **Host extraction semantics:** `HostCandidates()` returns completable literal hosts (filters patterns/wildcards/negations as per `isCompletableHost`); `DeclaredHosts()` preserves declared tokens including patterns/negations (pre-filter). `Match host`/`originalhost` contribute candidates unless the criterion itself is negated; static facts are associated without runtime evaluation (not `ssh -G` parity). `Include` directives encountered in `Host`/`Match` blocks are followed conservatively for discovery.
 - **No dynamic evaluation by default:** no canonicalization, token expansion, or runtime Match condition evaluation in default paths.
 
 ## Testing patterns
 
 - Standard `testing` package, mostly table-driven tests plus scenario tests using `t.TempDir()` and file fixtures/helpers (e.g. `writeFile` in package tests).
-- `config/index_test.go` is the main behavior suite: host filtering, `Match exec/command` non-execution/safety, criteria tolerance, comma/negation/`originalhost`, `Include` resolution/globs/relative paths/tilde/quoted names/cycles, `-F` isolation, user+system defaults/drop-ins, reader/path APIs, syntax tolerance/continuations, static facts/known-hosts aggregation, and non-fatal read handling.
+- `config/index_test.go` is the main behavior suite: host filtering, `Match exec/command` non-execution/safety, criteria tolerance/alignment (including `sessiontype`, empty/quoted args, negated criteria), comma/negation/`originalhost`, `Include` resolution/globs/relative paths/tilde/quoted names/cycles/conditional placement, `-F` isolation, user+system defaults/drop-ins, reader/path/base-dir APIs, syntax tolerance (continuations/CRLF/comments/malformed/binary), static facts/known-hosts aggregation, and non-fatal read handling.
 - Other packages have focused unit tests (`*_test.go`) for parsing/formatting/discovery/metadata/strict-resolution behavior.
 - Fuzz tests are present in `config`, `knownhosts`, `authorizedkeys`, and `destination` (`fuzz_test.go`); preserve/extend tolerance and non-execution guarantees when changing parsers.
-- When modifying behavior, add/update tests alongside the relevant package (and `testdata/` fixtures where appropriate) covering tolerance, include/base-dir context, `-F` isolation, and `Match exec` safety.
+- When modifying behavior, add/update tests alongside the relevant package (and `testdata/` fixtures where appropriate) covering tolerance, include/base-dir/context, `-F` isolation, and `Match exec` safety.
 
 ## Additional context
 
