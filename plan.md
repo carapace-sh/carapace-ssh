@@ -1,0 +1,165 @@
+# OpenSSH completion edge-case implementation plan
+
+## Goal
+
+Improve `carapace-ssh` so it extracts completable OpenSSH data safely, tolerantly, and deterministically across real-world `ssh_config`, `Match`, `Include`, and `known_hosts` edge cases. Default parsing/indexing must remain completion-safe: **no `Match exec`/`Match command` execution, no external processes, no network access, no `ssh -G` parity/canonicalization/token expansion**. `resolve/` remains an explicit opt-in exception.
+
+This plan is based on the current implementation/tests (`config/`, `knownhosts/`, `option/`, `destination/`, `key/`, `authorizedkeys/`, `resolve/`), local references (`AGENTS.md`, `skills/openssh/references/*`, README), OpenSSH `ssh_config(5)` semantics, upstream `readconf.c` Match/criteria cues, and known_hosts format behavior (`sshd(8)`/`hostfile.c` summary).
+
+## Non-goals (default paths)
+
+- Full `ssh -G` / runtime Match evaluation, canonicalization, or connection-time token expansion (`%h`, `%r`, `%p`, `%u`, `%C`, etc.).
+- Executing `Match exec`/`command`, `ProxyCommand`, `LocalCommand`, `RemoteCommand`, or probing agents/networks/hosts.
+- Strict OpenSSH validation/rejection of configs; prefer best-effort recovery over aborting.
+
+## Current coverage (baseline)
+
+- `config`: tolerant directive parsing, host/Match host extraction, `Include` follow/glob/cycle handling, `-F` vs defaults, basic line continuation/quoting/`=` forms, static facts, non-fatal reads, fuzzing, and strong `Match exec` non-execution tests.
+- `knownhosts`: plain/comma/bracketed `[host]:port` parsing, marker prefixes (`@cert-authority`, `@revoked`), hashed-host skipping, merge/default path helpers, tolerance/fuzzing.
+- `option`: keyword and Match-criterion metadata used for normalization/skipping (core/common set).
+- Adjacent helpers: `destination`, `key`, `authorizedkeys`, `resolve` have focused parsing/discovery behavior and tests; preserve their tolerant, side-effect-free contracts.
+
+## Implementation priorities
+
+1. **Safety/correctness regressions first:** never execute commands, never leak `-F` isolation, never panic/crash on malformed input.
+2. **Host-discovery completeness:** avoid dropping valid declared/completable hosts due to parsing/skipping/base-dir issues.
+3. **Determinism and explicit semantics:** document/test intentional tradeoffs (static facts, conditional includes, revoked/CA handling, IPv6 forms).
+4. **Metadata and fuzz depth:** keep tolerant parsing aligned with real OpenSSH syntax.
+
+## Work items
+
+### 1. Match parsing and criteria alignment (`config/match.go`, `option/match.go`, `config/index_test.go`)
+
+**Issues/edge cases**
+- `exec`/`command` must remain opaque and non-executing under all quoting/escaping/tokenization shapes (including quoted empty/complex args). Current `MatchArgRest` stop is safe; verify it cannot misread command text as later criteria or create side effects.
+- Argument/empty-arg semantics: `command` and `tagged` can involve empty values/special matching in OpenSSH; `all/canonical/final` combinations and standalone forms must stay tolerant.
+- Criteria coverage/alignment gaps: metadata includes core criteria but is missing/lagging newer forms such as `sessiontype` (and any other value/rest/zero-arg criteria encountered). Unknown-criterion fallback is conservative but may misalign if a true rest-arg or unusual-arity criterion is unknown.
+- Negated criteria tokens (`!user`, `!host`, `!exec`) and spaced/`=` forms (`criterion = value`, `criterion=` next token) must keep host extraction/alignment safe.
+
+**Plan**
+- [ ] Audit `Match` criterion handling against current `ssh_config(5)`/OpenSSH behavior and classify each criterion as zero-arg, single-value, value-list, or rest-of-line/command-like for parsing purposes.
+- [ ] Extend `option.MatchCriteria` (and lookup helpers/tests) for missing criteria relevant to safe skipping/alignment (at minimum evaluate/add `sessiontype`; include other known criteria as needed, with explicit kinds).
+- [ ] Keep `exec`/`command` (and any command-like criteria) non-executable and conservatively consumed; prefer safety over speculative host extraction when alignment is ambiguous.
+- [ ] Improve unknown-criterion fallback only where it can be made safer/more accurate without guessing execution or dynamic semantics.
+- [ ] Add/adjust tests for: `sessiontype`, `tagged`/`command` empty or quoted values, negated criteria, mixed criteria ordering, complex quoted `exec/command` text, `canonical`/`final` combinations, and malformed/unknown criteria not blocking later `host`/`originalhost` recovery where safe.
+
+**Acceptance**
+- No side effects for configs containing `Match exec`/`Match command` in any tested form.
+- Declared `host`/`originalhost` values are extracted when statically present and safely parseable; unsupported/ambiguous cases fail closed without aborting the file.
+
+### 2. `ssh_config` syntax tolerance and host token handling (`config/parse.go`, `config/hosts.go`, `config/index.go`)
+
+**Issues/edge cases**
+- Line continuations are partially handled; verify behavior with CRLF, continuations adjacent to comments/quoted strings, escaped whitespace, and malformed trailing escapes.
+- Quoting/comment/escape edge cases (quoted `#`, spaces/commas in values where relevant, backslash handling) must remain tolerant and must not enable execution or incorrect include/host extraction.
+- Host candidate filtering excludes patterns/negations/whitespace and metacharacters; confirm the filter is intentional and consistent with desired "literal completable host" behavior (declared/raw tokens remain available via `DeclaredHosts()`).
+- Token/env expansion markers (`%...`, `$VAR`) may appear in some values/paths; static parser should treat unexpandable forms as opaque/tolerant (no execution), while preserving existing `~` behavior.
+
+**Plan**
+- [ ] Add focused parser tests for continuation/comment/quote/escape combinations and malformed inputs (including binary/odd bytes and truncated lines).
+- [ ] Document and, if needed, refine the completable-host filter contract (what is a literal completion vs declared pattern/negation), keeping `DeclaredHosts()`/facts semantics explicit.
+- [ ] Ensure unexpanded `%` tokens and environment-variable-like forms in statically handled paths/values do not crash parsing and are handled conservatively (no dynamic expansion/evaluation).
+
+**Acceptance**
+- Parser/indexer remains panic-free and best-effort on malformed/unusual syntax; deterministic host outputs for identical input/options.
+
+### 3. `Include` resolution, context parity, and graph semantics (`config/index.go`, `config/options.go`)
+
+**Issues/edge cases**
+- Base-dir/context rules need clear parity for user vs system vs explicit `-F` vs `IndexReader` sources. `ssh_config(5)` states files without absolute paths are assumed in `~/.ssh` for user config and `/etc/ssh` for system config; relative-to-including-file resolution is also important for common setups/drop-ins.
+- `IndexReader` behavior depends on `Source{Path,BaseDir,System}` and fallbacks; empty/missing context should be well-defined.
+- `Include` inside `Host`/`Match` blocks: OpenSSH applies conditionally, but static indexing currently follows includes when encountered (conservative over-inclusion for discovery). This tradeoff must be explicit and tested.
+- Symlink/cycle identity, missing/unreadable/glob errors, quoted/globbed/multiple include args, and deterministic match ordering are mostly covered but need parity/regression coverage for real layouts.
+
+**Plan**
+- [ ] Define/document include path-resolution rules per context (default user, default system, explicit `-F`, `IndexPaths` source, `IndexReader`) including precedence/fallback behavior for relative paths.
+- [ ] Add tests for: system config including `ssh_config.d/*` and nested relative includes, `-F` file with relative/glob/quoted includes, `IndexReader` with/without `Path`/`BaseDir`/`System`, and user/system base-dir expectations.
+- [ ] Decide and codify behavior for `Include` inside `Host`/`Match` blocks (recommended: keep conservative follow for completion discovery unless it causes material correctness issues, but make it explicit and regression-tested).
+- [ ] Preserve non-fatal handling for missing/unreadable/no-match includes and deterministic processing of glob results.
+- [ ] Review `~`/path handling in include args (and interactions with quoted/`=` forms); avoid expanding tokens/env in unsafe or surprising ways.
+
+**Acceptance**
+- Explicit `-F` remains isolated from default configs but follows its include graph.
+- Default discovery and include traversal are predictable, cycle-safe, and covered for common user/system/drop-in layouts.
+
+### 4. Config sources, defaults, and static facts (`config/index.go`, `config/facts.go`)
+
+**Issues/edge cases**
+- Default entry ordering and drop-in behavior must stay configurable/testable (home/user/system path overrides, FS hooks).
+- Static facts are best-effort associations (active declared host tokens), not `ssh -G`-resolved effective config; ambiguity under `Match`-gated blocks is expected but should be documented and consistently tested.
+- `UserKnownHostsFile`/`GlobalKnownHostsFile` may appear multiple times, include multiple paths, `none`, relative/tilde forms, or unexpanded tokens; `KnownHostsFiles()`/consumers need a clear contract.
+- `IdentityAgent` special values (`none`, `SSH_AUTH_SOCK`, paths/env-indirection forms) and multi-value directives (`IdentityFile`, `CertificateFile`) should retain useful declared data without probing.
+
+**Plan**
+- [ ] Add tests clarifying default source order, `-F` isolation, and fact collection across `Host`/`Match` blocks (including gated/ambiguous cases) to lock in intended behavior.
+- [ ] Define `KnownHostsFiles()` behavior for `none`/duplicates/empty values and whether declared values are normalized or returned as-is; update docs/tests accordingly.
+- [ ] Keep fact values deterministic (stable query results/order where returned) and ensure no directive parsing triggers execution or network access.
+
+**Acceptance**
+- Fact APIs remain useful hints for completers while explicitly non-authoritative; no behavior implies `ssh -G` parity.
+
+### 5. `known_hosts` parsing, filtering, and enrichment (`knownhosts/*`)
+
+**Issues/edge cases (from `sshd(8)`/`hostfile.c` semantics)**
+- Field format: optional marker, hostnames, keytype, key, comment; `#`/blank ignored; malformed/truncated/invalid-marker/bad-hash/bad-key lines must be ignored non-fatally.
+- Markers: `@cert-authority` and `@revoked` prefix the host field. Revoked/CA scope entries are not ordinary connection targets; extraction policy must be explicit.
+- Hashed hosts (`|1|salt|hash`) are one-way and not completable.
+- Hostnames field is comma-separated pattern list: split per token; `*`/`?` patterns and `!` negations are not literal completions, but positive literal siblings on the same line may be.
+- Bracketed non-standard ports: `[host]:port`, `[ipv4]:port`, `[ipv6]:port` -> host extraction must be tolerant. IPv6 literals contain `:`; current known_hosts completable filter allows `:` (unlike config), so raw IPv6 may be emitted - confirm desired output form and consistency with consumers/`destination`.
+- Duplicates/conflicts and distinct port-qualified entries may appear; merge should remain deduped/sorted.
+
+**Plan**
+- [ ] Document/decide policy for `@revoked` and `@cert-authority` host tokens (recommended: exclude revoked hosts from completion candidates; treat CA-scope patterns conservatively and do not invent literals) and implement/tests accordingly.
+- [ ] Add tests for: mixed comma lists with positive + wildcard + negated tokens, `@cert-authority`/`@revoked` edge cases, bracketed IPv6 with port (`[2001:db8::1]:2222`), malformed marker/hash/field lines, and unreadable/missing files.
+- [ ] Reconcile host candidate normalization for IPv6/bracketed forms across `knownhosts`, `config`, and `destination` helpers (define canonical completable form or clearly document raw-form behavior).
+- [ ] Ensure `IndexPaths`/`IndexDefault`/reader behavior remains deterministic and non-fatal; support enrichment from config-declared `UserKnownHostsFile`/`GlobalKnownHostsFile` paths at API/integration level (including handling of `none` and multi-path values by callers).
+
+**Acceptance**
+- Only safe, literal, non-hashed hostname candidates are suggested by default; no panics on malformed known_hosts content.
+
+### 6. Keyword/Match metadata and helper-package consistency (`option/`, `destination/`, `key/`, `authorizedkeys/`)
+
+**Issues/edge cases**
+- `option` metadata drives tolerant parsing/skipping and public lookups; missing or misclassified keywords/criteria can reduce recovery or desync Match parsing.
+- Destination parsing must keep handling SSH/SCP/SFTP/URI forms used by completers: `user@host`, `host:port`/`[ipv6]:port`, raw IPv6 ambiguity, scp `target:path` (including Windows-drive local path handling), ProxyJump hop lists, URI query/fragment/encoded paths.
+- Identity and authorized_keys helpers must remain completion-safe (filesystem/env inspection only; no probing/execution), tolerant of common forms, and consistent with config/known_hosts host representations.
+
+**Plan**
+- [ ] Expand `option` keyword/criterion coverage and tests as needed for parsing-critical cases (prioritize Match criteria first); keep lists sorted and normalization behavior explicit.
+- [ ] Add targeted tests for destination/URI/ProxyJump/IPv6 forms that intersect host completion and for helper tolerance on malformed inputs.
+- [ ] Preserve non-fatal behavior for missing/unreadable discovery paths and avoid adding strict validation that rejects recoverable user data.
+
+**Acceptance**
+- Metadata and helpers support the same tolerant, deterministic, side-effect-free contract as config/known_hosts indexing.
+
+### 7. Fuzzing, regression matrix, and documentation
+
+**Plan**
+- [ ] Extend fuzz seeds/corpora for high-value combinations:
+  - `Match` with `exec/command` (complex quoting), `all/canonical/final`, unknown/new criteria, `sessiontype`, negations, empty args, continuations, and `= / spaced =` forms.
+  - `Include` graphs: nested, globbed, quoted, relative, `-F` isolation, reader contexts, symlink/cycle cases, missing/unreadable targets, and conditional placement in `Host`/`Match` blocks.
+  - `known_hosts`: markers, hashed, mixed literal/wildcard/negated tokens, `[ipv4]:port`, `[ipv6]:port`, malformed fields/hashes/markers.
+- [ ] Add regression fixtures under package `testdata/` for realistic configs/layouts (user+system+drop-in, bastion/ProxyJump/IdentityFile/known_hosts declarations) with golden candidate/facts outputs.
+- [ ] Run and keep passing: `go test ./...`, `go vet ./...`, and targeted fuzz runs for changed parsers (e.g. `go test ./config -run '^$' -fuzz=Fuzz`, similarly for `knownhosts`, `destination`, `authorizedkeys` as relevant).
+- [ ] Update docs when behavior/contracts become explicit: `README.md` scope/guarantees, `AGENTS.md` notes, and `skills/openssh/references/*` (Match criteria coverage, include context rules, known_hosts host extraction policy, IPv6/`none` handling).
+
+**Acceptance**
+- New edge cases are locked by deterministic tests/fixtures; fuzzers cover the risky parsing surfaces without finding panics or side effects.
+
+## Suggested implementation order
+
+1. `option` + `config/match`: Match criteria metadata/alignment and non-execution-safe parsing tests.
+2. `config/parse` + syntax/continuation/quote tolerance tests.
+3. `config/index` include/context parity (`-F`, defaults, reader, system/user/drop-ins, conditional include decision) with regression fixtures.
+4. `config/facts` contract clarifications/tests (including known_hosts path aggregation semantics).
+5. `knownhosts` extraction policy (markers/IPv6/mixed tokens) and enrichment consistency.
+6. Helper-package touch-ups (`destination/key/authorizedkeys`) only where needed for consistency.
+7. Fuzz seed expansion, full test/vet pass, and documentation updates.
+
+## Definition of done
+
+- All identified safety guarantees hold under new tests/fuzz cases (especially `Match exec/command`).
+- Host candidate and known_hosts extraction behavior is explicit, deterministic, and improved for documented edge cases.
+- `-F` isolation, default discovery, and include/cycle handling behave as specified.
+- `go test ./...` and `go vet ./...` pass; targeted fuzz runs for modified parsers show no crashes/side effects in exercised cases.
+- README/AGENTS/skill references reflect any intentional contract decisions.
