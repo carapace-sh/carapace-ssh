@@ -954,3 +954,27 @@ Host after-inline-exec-eq
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }
+
+func TestMatchCommandInlineAndCanonicalFinalForms(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Match command=sftp host sftp-host
+Host h1
+
+Match canonical
+Host canon-block
+
+Match final
+Host final-block
+
+Match canonical host canon-host2
+Host h2
+`)
+	idx := mustIndexFile(t, cfg)
+	got := idx.HostCandidates()
+	want := []string{"canon-block", "canon-host2", "final-block", "h1", "h2", "sftp-host"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
