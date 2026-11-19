@@ -457,3 +457,29 @@ Match exec "echo hi"
 		t.Fatalf("Facts(unknown) = %#v, want zero", facts)
 	}
 }
+
+func TestUnreadableEntryIsNonFatal(t *testing.T) {
+	idx, err := IndexFile("/unreadable/config", WithReadFile(func(string) ([]byte, error) {
+		return nil, os.ErrPermission
+	}))
+	if err != nil {
+		t.Fatalf("IndexFile(unreadable): %v", err)
+	}
+	if got := idx.HostCandidates(); len(got) != 0 {
+		t.Fatalf("HostCandidates() = %#v, want empty", got)
+	}
+
+	idx, err = IndexDefault(
+		WithUserConfigPath("/unreadable/user"),
+		WithSystemConfigPath("/unreadable/system"),
+		WithReadFile(func(string) ([]byte, error) {
+			return nil, os.ErrPermission
+		}),
+	)
+	if err != nil {
+		t.Fatalf("IndexDefault(unreadable): %v", err)
+	}
+	if got := idx.HostCandidates(); len(got) != 0 {
+		t.Fatalf("IndexDefault HostCandidates() = %#v, want empty", got)
+	}
+}

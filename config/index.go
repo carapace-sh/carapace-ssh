@@ -72,7 +72,7 @@ func IndexFile(path string, opts ...Option) (*Index, error) {
 
 	source := makeSource(path, "", o)
 	err := indexSource(idx, source, o)
-	if err != nil && errors.Is(err, os.ErrNotExist) {
+	if err != nil && isNonFatalReadError(err) {
 		return idx, nil
 	}
 	return idx, err
@@ -87,7 +87,7 @@ func IndexDefault(opts ...Option) (*Index, error) {
 	idx := newIndex()
 	var errs []error
 	for _, source := range []Source{o.defaultUserSource(), o.defaultSystemSource()} {
-		if err := indexSource(idx, source, o); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := indexSource(idx, source, o); err != nil && !isNonFatalReadError(err) {
 			errs = append(errs, err)
 		}
 	}
@@ -111,7 +111,7 @@ func IndexPaths(sources []Source, opts ...Option) (*Index, error) {
 		} else if source.BaseDir == "" && !source.System && o.homeDir != "" {
 			source.BaseDir = filepath.Join(o.homeDir, ".ssh")
 		}
-		if err := indexSource(idx, source, o); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := indexSource(idx, source, o); err != nil && !isNonFatalReadError(err) {
 			errs = append(errs, err)
 		}
 	}
@@ -232,7 +232,7 @@ func (ix *indexer) indexFile(idx *Index, path string, ctx Source, missingOK bool
 
 	content, err := ix.opts.readFile(resolved.readPath)
 	if err != nil {
-		if missingOK || errors.Is(err, os.ErrNotExist) {
+		if missingOK || isNonFatalReadError(err) {
 			return nil
 		}
 		return err
@@ -369,6 +369,10 @@ func expandTilde(path string, home string) string {
 	}
 	// ~user/... forms are not expanded without user lookup; return as-is.
 	return path
+}
+
+func isNonFatalReadError(err error) bool {
+	return errors.Is(err, os.ErrNotExist) || errors.Is(err, os.ErrPermission)
 }
 
 func hasGlobMeta(pattern string) bool {
