@@ -49,7 +49,9 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
   - Ran short fuzz smoke runs: `config` `FuzzIndexReader`, `config` `FuzzParseDirectives`, `knownhosts` `FuzzIndexReader`, `destination` `Fuzz`, `authorizedkeys` `Fuzz` (all passed). Also ran longer config/known_hosts `FuzzIndexReader` smoke runs (8s, passed).
   - Updated `README.md` to note revoked known_hosts exclusion from completable enrichment.
 - [x] Match extraction correctness fix:
-  - Skipped host extraction from negated `host`/`originalhost` Match criteria while preserving argument consumption/alignment, with regression test.
+  - Skipped host extraction from negated `host`/`originalhost` Match criteria while preserving argument consumption/alignment, with regression tests (including inline/mixed forms).
+- [x] Documentation/reference updates:
+  - Updated in-repo OpenSSH skill references (`skills/openssh/references/*`) for revoked/CA known_hosts policy, Match criteria alignment (`exec`/`command`/`sessiontype`, negated criteria, empty quoted args), known_hosts path aggregation (`none` excluded), conditional `Include` tradeoff, and syntax tolerance notes.
 
 ### Remaining focus
 - Full Match criteria audit/unknown-criterion fallback improvements and additional parsing alignment cases.
@@ -75,7 +77,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 - [x] Extend `option.MatchCriteria` (and lookup helpers/tests) for missing criteria relevant to safe skipping/alignment (at minimum evaluate/add `sessiontype`; include other known criteria as needed, with explicit kinds). *(sessiontype added; further audit pending)*
 - [x] Keep `exec`/`command` (and any command-like criteria) non-executable and conservatively consumed; prefer safety over speculative host extraction when alignment is ambiguous. *(`exec` remains rest-arg/non-executing; `command` treated as value arg for alignment, including empty quoted values)*
 - [ ] Improve unknown-criterion fallback only where it can be made safer/more accurate without guessing execution or dynamic semantics.
-- [x] Add/adjust tests for: `sessiontype`, `tagged`/`command` empty or quoted values, negated criteria, mixed criteria ordering, complex quoted `exec/command` text, `canonical`/`final` combinations, and malformed/unknown criteria not blocking later `host`/`originalhost` recovery where safe. *(sessiontype, empty `tagged`/`command`, and negated `host`/`originalhost` criteria covered; more cases pending)*
+- [x] Add/adjust tests for: `sessiontype`, `tagged`/`command` empty or quoted values, negated criteria, mixed criteria ordering, complex quoted `exec/command` text, `canonical`/`final` combinations, and malformed/unknown criteria not blocking later `host`/`originalhost` recovery where safe. *(sessiontype, empty `tagged`/`command`, and negated `host`/`originalhost` criteria including inline/mixed forms covered; more cases pending)*
 
 **Acceptance**
 - No side effects for configs containing `Match exec`/`Match command` in any tested form.
@@ -175,7 +177,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
   - `known_hosts`: markers, hashed, mixed literal/wildcard/negated tokens, `[ipv4]:port`, `[ipv6]:port`, malformed fields/hashes/markers.
 - [ ] Add regression fixtures under package `testdata/` for realistic configs/layouts (user+system+drop-in, bastion/ProxyJump/IdentityFile/known_hosts declarations) with golden candidate/facts outputs.
 - [ ] Run and keep passing: `go test ./...`, `go vet ./...`, and targeted fuzz runs for changed parsers (e.g. `go test ./config -run '^$' -fuzz=Fuzz`, similarly for `knownhosts`, `destination`, `authorizedkeys` as relevant).
-- [ ] Update docs when behavior/contracts become explicit: `README.md` scope/guarantees, `AGENTS.md` notes, and `skills/openssh/references/*` (Match criteria coverage, include context rules, known_hosts host extraction policy, IPv6/`none` handling).
+- [~] Update docs when behavior/contracts become explicit: `README.md` scope/guarantees, `AGENTS.md` notes, and `skills/openssh/references/*` (Match criteria coverage, include context rules, known_hosts host extraction policy, IPv6/`none` handling). *(README and in-repo skill references partially updated; AGENTS/final contract pass pending)*
 
 **Acceptance**
 - New edge cases are locked by deterministic tests/fixtures; fuzzers cover the risky parsing surfaces without finding panics or side effects.
