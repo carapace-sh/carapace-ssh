@@ -62,6 +62,7 @@ func TestParseAndFormatTarget(t *testing.T) {
 		{"alice@example.com:22", "alice", "example.com", "22", "alice@example.com:22", false},
 		{"2001:db8::1", "", "2001:db8::1", "", "[2001:db8::1]", false},
 		{"[2001:db8::1]", "", "2001:db8::1", "", "[2001:db8::1]", false},
+		{"alice@", "alice", "", "", "alice@", false},
 		{"", "", "", "", "", true},
 	}
 	for _, tt := range tests {

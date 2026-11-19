@@ -100,14 +100,18 @@ func ParseTarget(s string) Target {
 
 // FormatTarget formats a user@host[:port] target.
 func FormatTarget(t Target) string {
+	user := strings.TrimSpace(t.User)
 	host := FormatHostPort(t.Host, t.Port)
-	if host == "" {
-		return strings.TrimSpace(t.User)
-	}
-	if strings.TrimSpace(t.User) == "" {
+	switch {
+	case host != "" && user != "":
+		return user + "@" + host
+	case host != "":
 		return host
+	case user != "":
+		return user + "@"
+	default:
+		return ""
 	}
-	return strings.TrimSpace(t.User) + "@" + host
 }
 
 // SplitSCPRemote splits an scp/sftp-style remote argument into target and path
