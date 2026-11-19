@@ -782,3 +782,27 @@ Host declared-after-2
 		}
 	}
 }
+
+func TestMatchNegatedHostCriteriaInlineAndMixed(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Match !host=bad.example host=good.example
+Host declared-after
+
+Match user=alice !originalhost skip.example originalhost keep.example tagged ""
+Host declared-after-2
+`)
+	idx := mustIndexFile(t, cfg)
+	if got, want := idx.HostCandidates(), []string{"declared-after", "declared-after-2", "good.example", "keep.example"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+	declared := idx.DeclaredHosts()
+	for _, bad := range []string{"bad.example", "skip.example"} {
+		for _, h := range declared {
+			if h == bad {
+				t.Fatalf("DeclaredHosts() unexpectedly contains %q: %#v", bad, declared)
+			}
+		}
+	}
+}

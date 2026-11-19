@@ -30,9 +30,9 @@ Match parsing quality depends on knowing how many/what kind of arguments each cr
 
 Metadata to capture per criterion:
 - **Argument arity**: zero-arg (`all`, `canonical`, `final`), single/multi-value, or variable.
-- **Value form**: plain value, comma-separated list, pattern forms.
-- **Rest-of-line / command cases**: `exec`, `command` consume command text; must be treated as opaque and never executed.
-- **Known names**: `host`, `originalhost`, `user`, `localuser`, `localnetwork`, `tagged`, `exec`, `command`, `all`, `canonical`, `final`, etc., extensible as OpenSSH evolves.
+- **Value form**: plain value, comma-separated list, pattern forms; some criteria may accept empty quoted values in specific contexts.
+- **Rest-of-line / command cases**: `exec` consumes command text and must be treated as opaque and never executed. `command` is a requested command/subsystem match argument (can be empty/quoted) and must never be executed; model its argument kind explicitly for safe alignment.
+- **Known names**: `host`, `originalhost`, `user`, `localuser`, `localnetwork`, `tagged`, `sessiontype`, `version`, `address`, `ruser`, `rdomain`, `localport`, `remoteport`, `exec`, `command`, `all`, `canonical`, `final`, etc., extensible as OpenSSH evolves.
 
 With this metadata, tolerant skipping can preserve alignment and still recover `host`/`originalhost` reliably; unknown criteria should still fall back safely.
 

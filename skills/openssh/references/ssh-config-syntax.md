@@ -27,8 +27,9 @@ OpenSSH-style config syntax is flexible. The parser should accept, at least:
 - **Case-insensitive keywords**: `host`, `Host`, `HOST`, etc.
 - **Comments**: `#` starts a comment (typically to end of line); do not treat commented text as directives.
 - **Blank lines**: ignored.
-- **Quoted arguments**: preserve quoted paths/arguments as needed, especially for `Include` and any value that may contain spaces.
+- **Quoted arguments**: preserve quoted paths/arguments as needed, especially for `Include` and any value that may contain spaces. Empty quoted arguments may be meaningful for some Match criteria (e.g. `command ""`, `tagged ""`) and should be preserved when possible.
 - **Indentation variants**: directives may be indented within blocks in user configs.
+- **Line continuations**: tolerate backslash-newline continuations (including CRLF forms) on a best-effort basis; behavior near comments/quotes should remain non-fatal.
 
 ## Tokenization considerations
 
@@ -62,6 +63,7 @@ Do not implement runtime condition evaluation; "block applies" is irrelevant to 
 | Unknown keyword | Do not abort file; ignore or record as opaque as needed. |
 | Unknown Match criterion | Do not abort; skip criterion/args best-effort so later `host`/`originalhost` can still be found. |
 | Malformed/unparseable line | Best-effort: skip/recover and continue where possible. |
+| Binary/odd bytes | Do not crash; prefer tolerant handling over strict rejection. |
 | Unreadable/missing include target | Non-fatal; continue with rest of graph. |
 | Mixed/odd formatting | Prefer extraction over strict rejection. |
 

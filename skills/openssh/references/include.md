@@ -62,6 +62,7 @@ Token expansion (e.g. `%h`, `%u`) is generally not statically available for comp
 
 - **Explicit config path (`-F`)**: read only that file as the entry (no implicit merge of system/user defaults) but follow its `Include`s.
 - **Default discovery**: index user/system entry points and their includes under appropriate base dirs. Drop-in defaults (e.g. `/etc/ssh/ssh_config.d/*.conf`) should be added only with clearly defined, tested rules.
+- **Conditional placement**: OpenSSH applies `Include` conditionally inside `Host`/`Match` blocks. A completion-safe static indexer may follow such includes conservatively for host discovery (preferring over-inclusion to missed candidates), but this tradeoff must be explicit and tested.
 
 See [defaults.md](defaults.md).
 

@@ -11,21 +11,19 @@ A known_hosts parser/indexer can expose completable host candidates and merge/de
 | Form / element | Notes |
 |----------------|------|
 | **Plain host lists** | Comma-separated hostnames/patterns in the host field. |
-| **Bracketed `[host]:port`** | Non-default port notation; extract host and port as appropriate for completion. |
+| **Bracketed `[host]:port`** | Non-default port notation; extract the host portion for hostname completion (e.g. `[example.com]:2222` -> `example.com`, `[2001:db8::1]:2222` -> `2001:db8::1`). Port-aware forms are a consumer concern. |
 | **Wildcard/negated markers** | Recognize as syntax (e.g. `*`, `?`, `!` patterns) for parsing; completable output should follow filtering rules (patterns/negations typically not literal completions). |
-| **Markers** | `@cert-authority`, `@revoked` prefixes — parse/tolerate; decide how they affect host eligibility for completion (often still useful as known hostnames, but be explicit). |
+| **Markers** | `@cert-authority`, `@revoked` prefixes — parse/tolerate. **`@revoked` entries must not be suggested** for completion. `@cert-authority` entries may contain scope patterns and/or explicit literal host tokens; only literal, non-wildcard, non-negated, non-hashed tokens should be considered completable (policy must be explicit). |
 | **Hashed host entries** | Cannot be reversed; **skip/ignore hashed hosts for completion** but parse without error. |
 | **Comments / blank lines** | Tolerate and ignore. |
 
 Field structure (hostnames, key type, key, optional comment) should be parsed robustly enough to identify the host field even when later fields vary.
 
-## Hashed hosts
+## Markers and hashed hosts
 
-Hashed hostname entries (e.g. starting with `|1|...`) are intentionally one-way. The library must:
-- detect hashed entries
-- not attempt to reverse them
-- exclude them from completable host suggestions
-- continue parsing the rest of the file without error
+- **`@revoked`**: revoked host keys must never be accepted/suggested. Exclude revoked entries from completable host candidates.
+- **`@cert-authority`**: parse/tolerate; explicit literal host tokens in the host field may be completable, but wildcard/negated/hashed tokens are not. Be explicit about this policy in tests/consumers.
+- **Hashed hostnames** (e.g. `|1|...`) are one-way: do not reverse them, exclude from completion, and continue parsing.
 
 ## Default and configured locations
 
@@ -46,7 +44,7 @@ Consider:
 - deduplication across sources
 - deterministic ordering
 - optional source metadata (e.g. where a host came from) if useful to consumers, without complicating the simple API
-- port handling: whether to emit `host`, `[host]:port`, or both forms depends on consumer needs (document)
+- port handling: whether to emit `host`, `[host]:port`, or both forms depends on consumer needs (document). When extracting from bracketed IPv6 forms, be explicit about raw vs bracketed hostname representation.
 
 ## Safety and tolerance
 
@@ -62,10 +60,10 @@ Consider:
 ## Testing expectations
 
 - Plain and comma-separated host lists.
-- `[host]:port` forms.
-- `@cert-authority` / `@revoked` marker lines.
+- `[host]:port` and `[ipv6]:port` forms (including raw IPv6 extraction from bracketed entries).
+- `@cert-authority` / `@revoked` marker lines (revoked excluded; CA literal-token policy explicit).
 - Hashed hosts ignored for completion but parsed safely.
-- Wildcard/negated host tokens handled per filtering policy.
+- Wildcard/negated host tokens handled per filtering policy, including mixed comma-separated lists.
 - Merge/dedup with config hosts; deterministic output.
 
 ## Related

@@ -17,13 +17,13 @@ Collect literal host candidates from `Match` criteria:
 - `host` — match against the target hostname as given
 - `originalhost` — match against the original hostname as specified on the command line
 
-Include comma-separated lists and preserve awareness of `!`-negated forms as they appear in criteria arguments (see [host-candidates.md](host-candidates.md) for how negations/wildcards affect the *completable* filtered set).
+Include comma-separated lists and preserve awareness of `!`-negated forms as they appear in criteria arguments (see [host-candidates.md](host-candidates.md) for how negations/wildcards affect the *completable* filtered set). Do **not** extract hosts from negated `host`/`originalhost` criteria (e.g. `!host bad.example`), though their arguments must still be consumed for alignment. Extraction is static/best-effort and must not rely on runtime evaluation.
 
 ## Behavioral requirements (tolerant, non-executing)
 
 | Requirement | Detail |
 |-------------|--------|
-| **No execution** | Do not run `exec`/`command` criteria; treat their arguments as opaque text to skip over, not as commands. |
+| **No execution** | Never run `exec`/`command` or any external process. Treat `exec` command arguments as opaque (never executed); `command` takes a command/subsystem pattern argument (possibly empty/quoted) and must also never be executed. |
 | **Zero-arg criteria** | Parse/skip known zero-arg criteria such as `all`, `canonical`, `final` (and `canonical all` forms as encountered). |
 | **Argument-consuming criteria** | Parse/skip criteria that consume arguments so token alignment is preserved well enough to still find `host`/`originalhost` in the same `Match` line. |
 | **Unknown criteria/keywords** | Must not abort parsing of the file or prevent host extraction elsewhere. Fall back safely. |
@@ -32,13 +32,16 @@ Include comma-separated lists and preserve awareness of `!`-negated forms as the
 ## Known criteria to account for
 
 Tolerant handling commonly needs to account for criteria including:
-- `exec`, `command` (rest-of-line/command-like arguments; **never execute**)
-- `host`, `originalhost` (**extract**)
+- `exec` (command argument; **never execute**, opaque; may prevent safe recovery of later criteria on the same line)
+- `command` (requested command/subsystem pattern argument; **never execute**; may be empty/quoted)
+- `host`, `originalhost` (**extract**, but not when the criterion itself is negated)
 - `user`, `localuser`
 - `localnetwork`
 - `tagged`
+- `sessiontype`
 - `version`
 - `all`, `canonical`, `final` (zero-arg / standalone forms)
+- connection/context criteria such as `address`, `ruser`, `rdomain`, `localport`, `remoteport` (consume arguments when known)
 
 This list is not exhaustive; unknown criteria must be handled without aborting.
 
@@ -47,9 +50,10 @@ This list is not exhaustive; unknown criteria must be handled without aborting.
 Match criteria vary in arity and form (single value, comma-separated values, boolean-like keywords, rest-of-line command strings). Tolerant token skipping must be good enough to recover `host`/`originalhost` without over-parsing.
 
 Practical guidance:
-- Use explicit criterion metadata when available: argument arity, comma-list/value form, and rest-of-line cases.
+- Use explicit criterion metadata when available: argument kind/arity, value/list forms, and rest-of-line command cases.
+- Support `criterion=value`, `criterion = value`, and spaced forms. Preserve empty quoted argument tokens where relevant (e.g. `command ""`, `tagged ""`).
 - When arity is unknown, prefer a conservative skip strategy that does not drop subsequent `host`/`originalhost` criteria if they can be identified; but never guess in a way that causes execution.
-- `exec`/`command` typically consume the remainder relevant to the command argument; treat carefully as opaque.
+- `exec` command text must remain opaque/unexecuted; recovering additional host criteria after an `exec` argument on the same line may be unsafe. `command` should be aligned as a value argument (not arbitrary rest-of-line text) for parsing safety/alignment.
 
 ## Negation and lists
 

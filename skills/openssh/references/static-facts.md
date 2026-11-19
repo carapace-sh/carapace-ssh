@@ -21,6 +21,8 @@ A config index/model can retain statically present directive facts and expose qu
 | `UserKnownHostsFile` | Locate known_hosts sources per host context (when statically declared). |
 | `GlobalKnownHostsFile` | Locate system known_hosts sources per host context. |
 
+Declared known_hosts path values are preserved in per-host facts as collected. Aggregated known_hosts file lists intended for enrichment should exclude empty values and case-insensitive `none`, and remain deduplicated/sorted; path expansion/token evaluation is not performed by static indexing.
+
 Additional directives may be added as consumers need them, but keep scope tied to completion value.
 
 ## Association semantics (best-effort/static)
