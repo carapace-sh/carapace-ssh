@@ -24,8 +24,9 @@ func (i *Index) HostCandidates() []string {
 	return sortedUnique(i.hosts)
 }
 
-// IndexFile indexes a known_hosts file. Missing or unreadable files are treated
-// as non-fatal.
+// IndexFile indexes a known_hosts file. Tilde-prefixed paths are expanded
+// using configured home directory. Missing or unreadable files are treated as
+// non-fatal.
 func IndexFile(path string, opts ...Option) (*Index, error) {
 	o := defaultOptions()
 	for _, opt := range opts {
@@ -35,6 +36,7 @@ func IndexFile(path string, opts ...Option) (*Index, error) {
 	if path == "" {
 		return idx, nil
 	}
+	path = expandTilde(path, o.homeDir)
 	content, err := o.readFile(path)
 	if err != nil {
 		if isNonFatalReadError(err) {
@@ -48,8 +50,9 @@ func IndexFile(path string, opts ...Option) (*Index, error) {
 	return idx, nil
 }
 
-// IndexPaths indexes multiple known_hosts files in order. Missing or unreadable
-// files are treated as non-fatal.
+// IndexPaths indexes multiple known_hosts files in order. Tilde-prefixed paths
+// are expanded using configured home directory. Missing or unreadable files are
+// treated as non-fatal.
 func IndexPaths(paths []string, opts ...Option) (*Index, error) {
 	o := defaultOptions()
 	for _, opt := range opts {
@@ -61,6 +64,7 @@ func IndexPaths(paths []string, opts ...Option) (*Index, error) {
 		if path == "" {
 			continue
 		}
+		path = expandTilde(path, o.homeDir)
 		content, err := o.readFile(path)
 		if err != nil {
 			if isNonFatalReadError(err) {

@@ -28,11 +28,11 @@ Field structure (hostnames, key type, key, optional comment) should be parsed ro
 ## Default and configured locations
 
 APIs should support:
-- listing completable hostnames/ports from **given files**
+- listing completable hostnames/ports from **given files** (path-based indexing helpers may expand a leading `~` using the configured home directory)
 - listing from **default locations**: `~/.ssh/known_hosts`, `/etc/ssh/ssh_known_hosts`
 - integration with config-derived paths when available: `UserKnownHostsFile`, `GlobalKnownHostsFile`
 
-Keep path discovery explicit/configurable; avoid hidden global state (consistent with [defaults.md](defaults.md)).
+Keep path discovery explicit/configurable; avoid hidden global state (consistent with [defaults.md](defaults.md)). OpenSSH token expansion (`%h`, `%u`, etc.) is not performed.
 
 ## Merge and dedup
 
@@ -45,7 +45,7 @@ Consider:
 - deterministic ordering
 - optional source metadata (e.g. where a host came from) if useful to consumers, without complicating the simple API
 - port handling: whether to emit `host`, `[host]:port`, or both forms depends on consumer needs (document). Current completable host extraction emits the host portion only (stripping brackets/ports); bracketed IPv6 hosts are returned as raw IPv6 literals. Consumers can apply destination-specific formatting when needed.
-- config-declared `UserKnownHostsFile`/`GlobalKnownHostsFile` paths (aggregated via config index helpers, excluding empty/`none`) can be indexed by callers for enrichment; path token expansion is not performed.
+- config-declared `UserKnownHostsFile`/`GlobalKnownHostsFile` paths (aggregated via config index helpers, excluding empty/`none`) can be indexed by callers for enrichment. Config indexing returns declared paths as-is (no token expansion); known_hosts path-based indexing helpers may expand a leading `~` when a home directory is configured, but OpenSSH token expansion is not performed.
 
 ## Safety and tolerance
 

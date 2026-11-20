@@ -7,6 +7,7 @@
 // entries from completable candidates. Explicit literal @cert-authority host
 // tokens may be included when they are otherwise completable; wildcard/negated
 // tokens are not. It supports merging known hosts with ssh_config-declared
-// candidates. Missing or unreadable files are treated as non-fatal by indexing
+// candidates. Tilde-prefixed input paths are expanded using configured home
+// directory. Missing or unreadable files are treated as non-fatal by indexing
 // helpers.
 package knownhosts

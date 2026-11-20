@@ -208,3 +208,26 @@ just-a-host
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }
+
+func TestIndexPathsAndFileExpandTilde(t *testing.T) {
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	user := filepath.Join(home, ".ssh", "known_hosts")
+	writeFile(t, user, "tilde.example ssh-ed25519 AAAA\n")
+
+	idx, err := IndexPaths([]string{"~/.ssh/known_hosts"}, WithHomeDir(home))
+	if err != nil {
+		t.Fatalf("IndexPaths(tilde): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"tilde.example"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("IndexPaths(tilde) HostCandidates() = %#v, want %#v", got, want)
+	}
+
+	idx, err = IndexFile("~/.ssh/known_hosts", WithHomeDir(home))
+	if err != nil {
+		t.Fatalf("IndexFile(tilde): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"tilde.example"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("IndexFile(tilde) HostCandidates() = %#v, want %#v", got, want)
+	}
+}

@@ -73,12 +73,15 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
   - Documented known_hosts marker/IPv6 extraction policy and explicit literal `@cert-authority` host handling in package docs, README, AGENTS, and skill references (revoked excluded, hashed skipped, bracketed hosts extracted to hostnames/raw IPv6).
   - Kept in-flight known_hosts parser/test tolerance changes passing (host field requires key type/material; bracketed host-without-port and malformed cases covered). `go test ./...` and `go vet ./...` pass.
 
+- [x] known_hosts path handling/enrichment follow-up:
+  - Added leading `~` expansion for `knownhosts.IndexFile`/`IndexPaths` using configured home (with tests and package/skill/AGENTS docs), improving use of config-declared known_hosts paths for enrichment. `go test ./...` and `go vet ./...` pass.
+
 ### Remaining focus
 - Full Match criteria audit/unknown-criterion fallback improvements and additional parsing alignment cases. *(`localaddress` and `group` added; further audit pending)*
 - Broader ssh_config syntax tolerance follow-ups (additional continuation/comment/escape edge cases, explicit `%`/env handling decisions). *(unexpanded `%`/`$ENV` forms now covered for tolerance/static preservation; expansion policy remains out of scope)*
 - Include base-dir/context parity matrix and documentation (`-F`, defaults, `IndexReader`/`IndexPaths`, user vs system, conditional include semantics). *(core behaviors, programmatic contexts, and parity matrix documented in skill refs; implementation/tests may need further parity cases)*
 - Static facts contract/tests/docs (known_hosts path semantics, Match-gated association clarity). *(association and `none`/aggregation semantics documented; further contract tests/docs may be useful)*
-- known_hosts policy/normalization follow-ups (IPv6/bracketed form consistency across packages, `none`/multi-path enrichment integration from config-declared paths; CA literal-host policy now explicit but may be revisited if needed).
+- known_hosts policy/normalization follow-ups (IPv6/bracketed form consistency across packages, multi-path enrichment integration from config-declared paths; CA literal-host policy now explicit but may be revisited if needed). *(tilde expansion for known_hosts path indexing added)*
 - Longer targeted fuzz runs, regression fixtures, and README/AGENTS/skill reference updates for finalized contracts.
 
 
