@@ -1338,3 +1338,23 @@ func TestIndexPathsRelativeSourcePathUsesBaseDir(t *testing.T) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }
+
+func TestIndexPathsExplicitBaseDirOverridesFileDir(t *testing.T) {
+	dir := t.TempDir()
+	fileDir := filepath.Join(dir, "files")
+	baseDir := filepath.Join(dir, "base")
+	writeFile(t, filepath.Join(fileDir, "main.conf"), "Host main\nInclude inc.conf\n")
+	writeFile(t, filepath.Join(fileDir, "inc.conf"), "Host from-filedir\n")
+	writeFile(t, filepath.Join(baseDir, "inc.conf"), "Host from-basedir\n")
+
+	idx, err := IndexPaths([]Source{{
+		Path:    filepath.Join(fileDir, "main.conf"),
+		BaseDir: baseDir,
+	}})
+	if err != nil {
+		t.Fatalf("IndexPaths(): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"from-basedir", "main"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
