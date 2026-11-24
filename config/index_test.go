@@ -1572,3 +1572,14 @@ func TestIndexReaderNilReaderReturnsEmptyIndex(t *testing.T) {
 		t.Fatalf("HostCandidates() = %#v, want empty", got)
 	}
 }
+
+func TestIncludeDirectiveWithQuotedEqualsAndSpaces(t *testing.T) {
+	dir := t.TempDir()
+	base := filepath.Join(dir, "cfg")
+	writeFile(t, filepath.Join(base, "conf.d", "spaced name.conf"), "Host spaced-inc\n")
+	writeFile(t, filepath.Join(base, "main.conf"), "Host main\nInclude = \"conf.d/spaced name.conf\"\n")
+	idx := mustIndexFile(t, filepath.Join(base, "main.conf"))
+	if got, want := idx.HostCandidates(), []string{"main", "spaced-inc"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
