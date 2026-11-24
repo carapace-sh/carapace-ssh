@@ -30,8 +30,8 @@ Implementation should model context via an explicit source/options type (e.g. `S
 
 Current behavior highlights:
 - `IndexFile`/explicit paths and file-backed includes use the including file's directory as base context for traversal.
-- `IndexPaths` respects `Source.BaseDir`/`Source.System` when provided.
-- `IndexReader` uses `Source.BaseDir` or `Source.Path`'s directory when available; with no path/base dir it falls back to `~/.ssh` for user context or the configured system config directory for system context.
+- `IndexPaths` respects `Source.BaseDir`/`Source.System` when provided. Explicit `BaseDir` is expanded/normalized and used for resolving relative source paths and top-level include context.
+- `IndexReader` uses `Source.BaseDir` (expanded/normalized) or `Source.Path`'s directory when available; with no path/base dir it falls back to `~/.ssh` for user context or the configured system config directory for system context.
 - `~` is expanded in include patterns/paths using configured home dir; OpenSSH token expansion (`%h`, `%u`, etc.) and environment-variable expansion are not performed.
 
 Token expansion (e.g. `%h`, `%u`) is generally not statically available for completion-safe indexing; avoid runtime expansion. Unexpanded `%`/`$ENV`-like forms are treated tolerantly (no execution/dynamic expansion). See [defaults.md](defaults.md) for the context parity matrix.
