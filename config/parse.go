@@ -13,8 +13,7 @@ type directive struct {
 func parseDirectives(content []byte) []directive {
 	text := string(content)
 	// Best-effort handling of line continuations.
-	text = strings.ReplaceAll(text, "\\\r\n", " ")
-	text = strings.ReplaceAll(text, "\\\n", " ")
+	text = joinContinuedLines(text)
 
 	lines := strings.Split(text, "\n")
 	directives := make([]directive, 0, len(lines))
@@ -33,6 +32,36 @@ func parseDirectives(content []byte) []directive {
 		directives = append(directives, directive{keyword: strings.ToLower(keyword), args: args})
 	}
 	return directives
+}
+
+func joinContinuedLines(text string) string {
+	var out strings.Builder
+	out.Grow(len(text))
+	for i := 0; i < len(text); i++ {
+		c := text[i]
+		if c != '\\' {
+			out.WriteByte(c)
+			continue
+		}
+		// Backslash at end of input: treat as a tolerated trailing continuation.
+		if i+1 >= len(text) {
+			out.WriteByte(' ')
+			continue
+		}
+		next := text[i+1]
+		if next == '\n' {
+			out.WriteByte(' ')
+			i++
+			continue
+		}
+		if next == '\r' && i+2 < len(text) && text[i+2] == '\n' {
+			out.WriteByte(' ')
+			i += 2
+			continue
+		}
+		out.WriteByte(c)
+	}
+	return out.String()
 }
 
 func stripComment(line string) string {

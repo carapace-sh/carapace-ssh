@@ -766,6 +766,18 @@ func TestMalformedAndBinaryInputIsTolerated(t *testing.T) {
 	}
 }
 
+func TestContinuationToleranceEdgeCases(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	// Trailing continuation at EOF and continued comment/host lines should be
+	// tolerated without panicking or dropping recoverable hosts.
+	writeFile(t, cfg, "Host first\\\nsecond\n# comment \\\nstill-comment\nHost third\\")
+	idx := mustIndexFile(t, cfg)
+	if got, want := idx.HostCandidates(), []string{"first", "second", "third"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
 func TestMatchNegatedHostCriteriaDoNotExtractHosts(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
