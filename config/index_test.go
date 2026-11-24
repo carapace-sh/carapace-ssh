@@ -1522,3 +1522,24 @@ Host real
 		t.Fatalf("Facts(empty) = %#v", f)
 	}
 }
+
+func TestMatchBlockDirectivesAssociatedBeforeNextHost(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Match host m1 originalhost m2
+  User matchuser
+Host plain
+  User plainuser
+`)
+	idx := mustIndexFile(t, cfg)
+	if f := idx.Facts("m1"); f.User != "matchuser" {
+		t.Fatalf("Facts(m1).User = %q, want matchuser", f.User)
+	}
+	if f := idx.Facts("m2"); f.User != "matchuser" {
+		t.Fatalf("Facts(m2).User = %q, want matchuser", f.User)
+	}
+	if f := idx.Facts("plain"); f.User != "plainuser" {
+		t.Fatalf("Facts(plain).User = %q, want plainuser", f.User)
+	}
+}
