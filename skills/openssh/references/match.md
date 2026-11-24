@@ -35,7 +35,7 @@ Tolerant handling commonly needs to account for criteria including:
 - `exec` (command argument; **never execute**, opaque; may prevent safe recovery of later criteria on the same line)
 - `command` (requested command/subsystem pattern argument; **never execute**; may be empty/quoted)
 - `host`, `originalhost` (**extract**, but not when the criterion itself is negated)
-- `user`, `group`, `localuser`
+- `user`, `group`, `localuser`, `localgroup`
 - `localnetwork`
 - `tagged`
 - `sessiontype`
