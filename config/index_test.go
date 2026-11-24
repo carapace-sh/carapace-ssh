@@ -1303,6 +1303,9 @@ Match host m1,m2 originalhost m3
 			t.Fatalf("Facts(%q).ProxyJump = %#v, want %q", host, f.ProxyJump, "jump.example")
 		}
 	}
+	if got, want := idx.HostsWithFacts(), []string{"m1", "m2", "m3", "one", "two"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostsWithFacts() = %#v, want %#v", got, want)
+	}
 }
 
 func TestKnownHostsFilesIgnoresEmptyAndNoneCaseInsensitive(t *testing.T) {
