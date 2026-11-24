@@ -1180,9 +1180,12 @@ Host h5
 
 Match group staff host group-host
 Host h6
+
+Match localgroup wheel host lgroup-host
+Host h7
 `)
 	idx := mustIndexFile(t, cfg)
-	if got, want := idx.HostCandidates(), []string{"addr-host", "group-host", "h1", "h2", "h3", "h4", "h5", "h6", "laddr-host", "lport-host", "rdomain-host", "rport-host"}; !reflect.DeepEqual(got, want) {
+	if got, want := idx.HostCandidates(), []string{"addr-host", "group-host", "h1", "h2", "h3", "h4", "h5", "h6", "h7", "laddr-host", "lgroup-host", "lport-host", "rdomain-host", "rport-host"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }
