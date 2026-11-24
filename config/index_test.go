@@ -1211,9 +1211,9 @@ Host app
 		t.Fatalf("KnownHostsFiles() = %#v, want %#v", got, want)
 	}
 
-	kh, err := knownhosts.IndexPaths(idx.KnownHostsFiles(), knownhosts.WithHomeDir(home))
+	kh, err := knownhosts.IndexFromConfigPaths(idx.KnownHostsFiles(), knownhosts.WithHomeDir(home))
 	if err != nil {
-		t.Fatalf("knownhosts.IndexPaths(): %v", err)
+		t.Fatalf("knownhosts.IndexFromConfigPaths(): %v", err)
 	}
 	merged := knownhosts.Merge(idx.HostCandidates(), kh.HostCandidates())
 	wantMerged := []string{"2001:db8::10", "app", "from-global.example", "from-user.example"}
