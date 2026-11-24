@@ -32,6 +32,8 @@ var matchCriteria = map[string]MatchCriterion{
 	"user":         {Name: "user", Kind: MatchArgValue},
 	"group":        {Name: "group", Kind: MatchArgValue},
 	"localuser":    {Name: "localuser", Kind: MatchArgValue},
+	// Keep localgroup as a tolerant known criterion: present in some OpenSSH
+	// variants/builds and safe to align as a value argument.
 	"localgroup":   {Name: "localgroup", Kind: MatchArgValue},
 	"localaddress": {Name: "localaddress", Kind: MatchArgValue},
 	"localnetwork": {Name: "localnetwork", Kind: MatchArgValue},
