@@ -917,9 +917,12 @@ Host h3
 
 Match !sessiontype none originalhost ok4
 Host h4
+
+Match !localgroup staff host ok5
+Host h5
 `)
 	idx := mustIndexFile(t, cfg)
-	if got, want := idx.HostCandidates(), []string{"h1", "h2", "h3", "h4", "ok1", "ok2", "ok3", "ok4"}; !reflect.DeepEqual(got, want) {
+	if got, want := idx.HostCandidates(), []string{"h1", "h2", "h3", "h4", "h5", "ok1", "ok2", "ok3", "ok4", "ok5"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }
