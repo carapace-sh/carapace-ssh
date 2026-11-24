@@ -1495,3 +1495,30 @@ func TestIndexPathsExplicitBaseDirOverridesFileDir(t *testing.T) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }
+
+func TestDirectivesBeforeFirstHostBlockIgnored(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+User nobody
+Port 2222
+
+Host real
+  User alice
+`)
+	idx := mustIndexFile(t, cfg)
+	if got, want := idx.HostCandidates(), []string{"real"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+	if got := idx.HostsWithFacts(); !reflect.DeepEqual(got, []string{"real"}) {
+		t.Fatalf("HostsWithFacts() = %#v, want [real]", got)
+	}
+	if f := idx.Facts("real"); f.User != "alice" {
+		t.Fatalf("Facts(real).User = %q, want alice", f.User)
+	}
+	// No host token was active for top-level directives, so they should not be
+	// associated with any declared host.
+	if f := idx.Facts(""); !reflect.DeepEqual(f, HostFacts{}) {
+		t.Fatalf("Facts(empty) = %#v", f)
+	}
+}
