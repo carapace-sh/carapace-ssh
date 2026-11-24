@@ -8,6 +8,7 @@
 // tokens may be included when they are otherwise completable; wildcard/negated
 // tokens are not. It supports merging known hosts with ssh_config-declared
 // candidates. Tilde-prefixed input paths are expanded using configured home
-// directory. Missing or unreadable files are treated as non-fatal by indexing
-// helpers.
+// directory. IndexFromConfigPaths can index config-declared known_hosts path
+// values while ignoring empty/"none" entries. Missing or unreadable files are
+// treated as non-fatal by indexing helpers.
 package knownhosts

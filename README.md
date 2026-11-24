@@ -47,6 +47,9 @@ func main() {
 
 	// Known hosts enrichment (best-effort; missing files are non-fatal).
 	known, _ := knownhosts.IndexDefault()
+	// Or index config-declared UserKnownHostsFile/GlobalKnownHostsFile paths:
+	// cfg, _ := config.IndexConfig("")
+	// known, _ = knownhosts.IndexFromConfigPaths(cfg.KnownHostsFiles())
 	merged := knownhosts.Merge(hosts, known.HostCandidates())
 	_ = merged
 }
