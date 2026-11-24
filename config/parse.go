@@ -37,27 +37,63 @@ func parseDirectives(content []byte) []directive {
 func joinContinuedLines(text string) string {
 	var out strings.Builder
 	out.Grow(len(text))
+	inSingle := false
+	inDouble := false
+	inComment := false
+	escaped := false
 	for i := 0; i < len(text); i++ {
 		c := text[i]
-		if c != '\\' {
+		if c == '\n' || c == '\r' {
+			inComment = false
+			escaped = false
 			out.WriteByte(c)
 			continue
 		}
-		// Backslash at end of input: treat as a tolerated trailing continuation.
-		if i+1 >= len(text) {
-			out.WriteByte(' ')
+		if inComment {
+			out.WriteByte(c)
 			continue
 		}
-		next := text[i+1]
-		if next == '\n' {
-			out.WriteByte(' ')
-			i++
+		if escaped {
+			escaped = false
+			out.WriteByte(c)
 			continue
 		}
-		if next == '\r' && i+2 < len(text) && text[i+2] == '\n' {
-			out.WriteByte(' ')
-			i += 2
+		if c == '\\' && !inSingle {
+			// Line continuation only outside comments and single quotes.
+			if i+1 < len(text) {
+				next := text[i+1]
+				if next == '\n' {
+					out.WriteByte(' ')
+					i++
+					continue
+				}
+				if next == '\r' && i+2 < len(text) && text[i+2] == '\n' {
+					out.WriteByte(' ')
+					i += 2
+					continue
+				}
+			} else {
+				// Trailing backslash at EOF: tolerated continuation.
+				out.WriteByte(' ')
+				continue
+			}
+			escaped = true
+			out.WriteByte(c)
 			continue
+		}
+		switch c {
+		case '\'':
+			if !inDouble {
+				inSingle = !inSingle
+			}
+		case '"':
+			if !inSingle {
+				inDouble = !inDouble
+			}
+		case '#':
+			if !inSingle && !inDouble {
+				inComment = true
+			}
 		}
 		out.WriteByte(c)
 	}

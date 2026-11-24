@@ -769,12 +769,20 @@ func TestMalformedAndBinaryInputIsTolerated(t *testing.T) {
 func TestContinuationToleranceEdgeCases(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
-	// Trailing continuation at EOF and continued comment/host lines should be
-	// tolerated without panicking or dropping recoverable hosts.
+	// Trailing continuation at EOF and continued host lines should be tolerated.
+	// Backslash-newline inside comments is not a config continuation.
 	writeFile(t, cfg, "Host first\\\nsecond\n# comment \\\nstill-comment\nHost third\\")
 	idx := mustIndexFile(t, cfg)
 	if got, want := idx.HostCandidates(), []string{"first", "second", "third"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+
+	idx, err := IndexReader(strings.NewReader("Host a # comment \\\nb\nHost c\n"), Source{Path: "c.conf", BaseDir: "."})
+	if err != nil {
+		t.Fatalf("IndexReader(comment continuation): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"a", "c"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates(comment continuation) = %#v, want %#v", got, want)
 	}
 }
 
