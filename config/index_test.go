@@ -1367,6 +1367,12 @@ Host app
 	if got := idx.Facts("missing"); !reflect.DeepEqual(got, HostFacts{}) {
 		t.Fatalf("Facts(missing) = %#v, want zero", got)
 	}
+
+	f2 := idx.Facts("app")
+	f2.IdentityFiles[0] = "mutated"
+	if got := idx.Facts("app").IdentityFiles[0]; got != "~/.ssh/id_one" {
+		t.Fatalf("Facts should return clone, got mutated value %q", got)
+	}
 }
 
 func TestIndexReaderExplicitBaseDirOverridesPathDir(t *testing.T) {
