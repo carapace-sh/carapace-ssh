@@ -258,3 +258,19 @@ func TestIndexFromConfigPaths(t *testing.T) {
 		t.Fatalf("IndexFromConfigPaths(nil) = %#v, want empty", got)
 	}
 }
+
+func TestIndexFromConfigPathsExpandsHomeOnlyMarker(t *testing.T) {
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	writeFile(t, filepath.Join(home, ".ssh", "known_hosts"), "home.example ssh-ed25519 AAAA\n")
+	// "~" alone is uncommon for known_hosts but should follow the same tilde rule.
+	// IndexFile behavior is path-specific; IndexFromConfigPaths should not panic
+	// and should treat a non-file expanded path as non-fatal.
+	idx, err := IndexFromConfigPaths([]string{"~"}, WithHomeDir(home))
+	if err != nil {
+		t.Fatalf("IndexFromConfigPaths(~): %v", err)
+	}
+	if got := idx.HostCandidates(); len(got) != 0 {
+		t.Fatalf("HostCandidates(~) = %#v, want empty", got)
+	}
+}

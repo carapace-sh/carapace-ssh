@@ -85,7 +85,18 @@ func IndexPaths(paths []string, opts ...Option) (*Index, error) {
 }
 
 func isNonFatalReadError(err error) bool {
-	return errors.Is(err, os.ErrNotExist) || errors.Is(err, os.ErrPermission)
+	if errors.Is(err, os.ErrNotExist) || errors.Is(err, os.ErrPermission) {
+		return true
+	}
+	// Tolerate unreadable directory paths that may appear in config-declared
+	// known_hosts lists after tilde expansion.
+	var pathErr *os.PathError
+	if errors.As(err, &pathErr) {
+		if info, statErr := os.Stat(pathErr.Path); statErr == nil && info.IsDir() {
+			return true
+		}
+	}
+	return false
 }
 
 // IndexDefault indexes default user and system known_hosts files.
