@@ -182,6 +182,14 @@ func IndexReader(r io.Reader, source Source, opts ...Option) (*Index, error) {
 	}
 	ix := &indexer{opts: o, visited: map[string]struct{}{}}
 
+	if source.BaseDir != "" {
+		source.BaseDir = expandTilde(source.BaseDir, o.homeDir)
+		if absBase, err := o.abs(source.BaseDir); err == nil {
+			source.BaseDir = absBase
+		} else {
+			source.BaseDir = filepath.Clean(source.BaseDir)
+		}
+	}
 	if source.Path != "" {
 		source = makeSource(source.Path, source.BaseDir, o)
 		if resolved, resolveErr := ix.resolvePath(source.Path, filepath.Dir(source.Path), source); resolveErr == nil {
