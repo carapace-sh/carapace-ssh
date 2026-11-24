@@ -274,3 +274,17 @@ func TestIndexFromConfigPathsExpandsHomeOnlyMarker(t *testing.T) {
 		t.Fatalf("HostCandidates(~) = %#v, want empty", got)
 	}
 }
+
+func TestIndexFromConfigPathsTrimsWhitespace(t *testing.T) {
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	userKH := filepath.Join(home, ".ssh", "known_hosts")
+	writeFile(t, userKH, "user.example ssh-ed25519 AAAA\n")
+	idx, err := IndexFromConfigPaths([]string{"  ~/.ssh/known_hosts  ", " none "}, WithHomeDir(home))
+	if err != nil {
+		t.Fatalf("IndexFromConfigPaths(): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"user.example"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
