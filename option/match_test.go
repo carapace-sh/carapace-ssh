@@ -19,6 +19,7 @@ func TestLookupMatchCriterion(t *testing.T) {
 		{name: "final", kind: MatchArgNone, known: true, zeroArg: true},
 		{name: "user", kind: MatchArgValue, known: true},
 		{name: "group", kind: MatchArgValue, known: true},
+		{name: "localgroup", kind: MatchArgValue, known: true},
 		{name: "localaddress", kind: MatchArgValue, known: true},
 		{name: "sessiontype", kind: MatchArgValue, known: true},
 		{name: "version", kind: MatchArgValue, known: true},
@@ -59,6 +60,7 @@ func TestMatchCriteriaList(t *testing.T) {
 	foundSessionType := false
 	foundLocalAddress := false
 	foundGroup := false
+	foundLocalGroup := false
 	for _, c := range criteria {
 		if c.Name == "version" {
 			foundVersion = true
@@ -72,6 +74,9 @@ func TestMatchCriteriaList(t *testing.T) {
 		if c.Name == "group" {
 			foundGroup = true
 		}
+		if c.Name == "localgroup" {
+			foundLocalGroup = true
+		}
 	}
 	if !foundVersion {
 		t.Fatal("MatchCriteria() missing version")
@@ -84,5 +89,8 @@ func TestMatchCriteriaList(t *testing.T) {
 	}
 	if !foundGroup {
 		t.Fatal("MatchCriteria() missing group")
+	}
+	if !foundLocalGroup {
+		t.Fatal("MatchCriteria() missing localgroup")
 	}
 }

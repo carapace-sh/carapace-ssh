@@ -32,6 +32,7 @@ var matchCriteria = map[string]MatchCriterion{
 	"user":         {Name: "user", Kind: MatchArgValue},
 	"group":        {Name: "group", Kind: MatchArgValue},
 	"localuser":    {Name: "localuser", Kind: MatchArgValue},
+	"localgroup":   {Name: "localgroup", Kind: MatchArgValue},
 	"localaddress": {Name: "localaddress", Kind: MatchArgValue},
 	"localnetwork": {Name: "localnetwork", Kind: MatchArgValue},
 	"tagged":       {Name: "tagged", Kind: MatchArgValue},
