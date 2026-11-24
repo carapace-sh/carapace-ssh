@@ -201,7 +201,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 ### 7. Fuzzing, regression matrix, and documentation
 
 **Plan**
-- [~] Extend fuzz seeds/corpora for high-value combinations: *(config/knownhosts seeds expanded with negated/inline command-exec, empty/unknown/canonical-final forms; short, 10s, and 15s targeted fuzz runs passed on core parsers; further cases pending)*
+- [~] Extend fuzz seeds/corpora for high-value combinations: *(config/knownhosts seeds expanded with negated/inline command-exec, empty/unknown/canonical-final forms, localgroup, and unknown empty-inline criteria; short, 10s, and 15s targeted fuzz runs passed on core parsers; further cases pending)*
   - `Match` with `exec/command` (complex quoting), `all/canonical/final`, unknown/new criteria, `sessiontype`, negations, empty args, continuations, and `= / spaced =` forms.
   - `Include` graphs: nested, globbed, quoted, relative, `-F` isolation, reader contexts, symlink/cycle cases, missing/unreadable targets, and conditional placement in `Host`/`Match` blocks.
   - `known_hosts`: markers, hashed, mixed literal/wildcard/negated tokens, `[ipv4]:port`, `[ipv6]:port`, malformed fields/hashes/markers.
