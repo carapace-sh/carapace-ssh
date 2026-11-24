@@ -34,19 +34,19 @@ func TestHostCandidatesBasicAndFiltering(t *testing.T) {
 	cfg := filepath.Join(dir, "config")
 	writeFile(t, cfg, `
 # comment
-Host foo bar *.wild ?q [abc] !negated spaced\ host
+Host foo bar *.wild ?q [abc] !negated spaced\ host 2001:db8::1
 HostName ignored.example
 Match host baz,*.skip,!nope
 `)
 
 	idx := mustIndexFile(t, cfg)
 	got := idx.HostCandidates()
-	want := []string{"bar", "baz", "foo"}
+	want := []string{"2001:db8::1", "bar", "baz", "foo"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 	declared := idx.DeclaredHosts()
-	wantDeclared := []string{"!negated", "!nope", "*.skip", "*.wild", "?q", "[abc]", "bar", "baz", "foo", "spaced host"}
+	wantDeclared := []string{"!negated", "!nope", "*.skip", "*.wild", "2001:db8::1", "?q", "[abc]", "bar", "baz", "foo", "spaced host"}
 	if !reflect.DeepEqual(declared, wantDeclared) {
 		t.Fatalf("DeclaredHosts() = %#v, want %#v", declared, wantDeclared)
 	}
