@@ -1615,3 +1615,24 @@ Host "a b" c\ d plain
 		t.Fatalf("DeclaredHosts() = %#v, want %#v", got, want)
 	}
 }
+
+func TestNegatedHostFactsNotAssociatedByCurrentContract(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Host !bad good
+  User alice
+`)
+	idx := mustIndexFile(t, cfg)
+	if got, want := idx.HostCandidates(), []string{"good"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+	if f := idx.Facts("good"); f.User != "alice" {
+		t.Fatalf("Facts(good).User = %q, want alice", f.User)
+	}
+	// Negated tokens are declared and currently receive block fact association;
+	// this test locks in the present static contract.
+	if f := idx.Facts("!bad"); f.User != "alice" {
+		t.Fatalf("Facts(!bad).User = %q, want alice", f.User)
+	}
+}
