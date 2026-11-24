@@ -1302,6 +1302,16 @@ func TestIndexReaderAndPathsExpandTildeBaseDir(t *testing.T) {
 		t.Fatalf("IndexReader HostCandidates() = %#v, want %#v", got, want)
 	}
 
+	idx, err = IndexReader(strings.NewReader("Host root\nInclude inc.conf\n"), Source{
+		BaseDir: "~/cfg",
+	}, WithHomeDir(home))
+	if err != nil {
+		t.Fatalf("IndexReader(tilde BaseDir no Path): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"from-tilde-base", "root"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("IndexReader(no Path) HostCandidates() = %#v, want %#v", got, want)
+	}
+
 	idx, err = IndexPaths([]Source{{Path: "main.conf", BaseDir: "~/cfg"}}, WithHomeDir(home))
 	if err != nil {
 		t.Fatalf("IndexPaths(tilde BaseDir): %v", err)
