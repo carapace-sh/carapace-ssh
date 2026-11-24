@@ -231,3 +231,22 @@ func TestIndexPathsAndFileExpandTilde(t *testing.T) {
 		t.Fatalf("IndexFile(tilde) HostCandidates() = %#v, want %#v", got, want)
 	}
 }
+
+func TestIndexFromConfigPaths(t *testing.T) {
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	userKH := filepath.Join(home, ".ssh", "known_hosts")
+	globalKH := filepath.Join(dir, "etc", "ssh", "ssh_known_hosts")
+	writeFile(t, userKH, "user.example ssh-ed25519 AAAA\n")
+	writeFile(t, globalKH, "global.example ssh-ed25519 AAAA\n")
+
+	idx, err := IndexFromConfigPaths([]string{"", "none", "NONE", "~/.ssh/known_hosts", globalKH, "/missing"}, WithHomeDir(home))
+	if err != nil {
+		t.Fatalf("IndexFromConfigPaths(): %v", err)
+	}
+	got := idx.HostCandidates()
+	want := []string{"global.example", "user.example"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}

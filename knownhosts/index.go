@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"strings"
 )
 
 // Index contains parsed completable host candidates from known_hosts sources.
@@ -90,6 +91,19 @@ func isNonFatalReadError(err error) bool {
 // IndexDefault indexes default user and system known_hosts files.
 func IndexDefault(opts ...Option) (*Index, error) {
 	return IndexPaths(DefaultPaths(opts...), opts...)
+}
+
+// IndexFromConfigPaths indexes known_hosts files from config-declared path
+// values. Empty and case-insensitive "none" entries are ignored.
+func IndexFromConfigPaths(paths []string, opts ...Option) (*Index, error) {
+	filtered := make([]string, 0, len(paths))
+	for _, p := range paths {
+		if p == "" || strings.EqualFold(p, "none") {
+			continue
+		}
+		filtered = append(filtered, p)
+	}
+	return IndexPaths(filtered, opts...)
 }
 
 // IndexReader indexes known_hosts content from a reader.
