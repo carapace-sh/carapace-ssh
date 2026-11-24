@@ -1322,6 +1322,50 @@ Host a
 	}
 }
 
+func TestStaticFactsScalarOverrideAndListAppend(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Host app
+  User first
+  Port 22
+  IdentityFile ~/.ssh/id_one
+  CertificateFile ~/.ssh/id_one-cert.pub
+  ProxyJump jump1
+
+Host app
+  User second
+  Port 2202
+  IdentityFile ~/.ssh/id_one
+  IdentityFile ~/.ssh/id_two
+  CertificateFile ~/.ssh/id_one-cert.pub
+  CertificateFile ~/.ssh/id_two-cert.pub
+  ProxyJump jump2
+  ProxyCommand ssh -W %h:%p proxy
+  IdentityAgent SSH_AUTH_SOCK
+`)
+	idx := mustIndexFile(t, cfg)
+	f := idx.Facts("app")
+	if f.User != "second" || f.Port != "2202" {
+		t.Fatalf("Facts(app) scalar override = %#v", f)
+	}
+	if f.ProxyJump != "jump2" || f.ProxyCommand != "ssh -W %h:%p proxy" || f.IdentityAgent != "SSH_AUTH_SOCK" {
+		t.Fatalf("Facts(app) proxy/agent = %#v", f)
+	}
+	if !reflect.DeepEqual(f.IdentityFiles, []string{"~/.ssh/id_one", "~/.ssh/id_two"}) {
+		t.Fatalf("Facts(app).IdentityFiles = %#v", f.IdentityFiles)
+	}
+	if !reflect.DeepEqual(f.CertificateFiles, []string{"~/.ssh/id_one-cert.pub", "~/.ssh/id_two-cert.pub"}) {
+		t.Fatalf("Facts(app).CertificateFiles = %#v", f.CertificateFiles)
+	}
+	if got := idx.HostsWithFacts(); !reflect.DeepEqual(got, []string{"app"}) {
+		t.Fatalf("HostsWithFacts() = %#v", got)
+	}
+	if got := idx.Facts("missing"); !reflect.DeepEqual(got, HostFacts{}) {
+		t.Fatalf("Facts(missing) = %#v, want zero", got)
+	}
+}
+
 func TestIndexReaderExplicitBaseDirOverridesPathDir(t *testing.T) {
 	dir := t.TempDir()
 	pathDir := filepath.Join(dir, "pathdir")
