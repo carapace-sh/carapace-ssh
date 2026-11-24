@@ -249,4 +249,12 @@ func TestIndexFromConfigPaths(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
+
+	idx, err = IndexFromConfigPaths(nil)
+	if err != nil {
+		t.Fatalf("IndexFromConfigPaths(nil): %v", err)
+	}
+	if got := idx.HostCandidates(); len(got) != 0 {
+		t.Fatalf("IndexFromConfigPaths(nil) = %#v, want empty", got)
+	}
 }
