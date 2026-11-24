@@ -98,6 +98,9 @@ Host local-host
 Match user bob tagged ci
 Host tagged-host
 
+Match localgroup staff host localgroup-host
+Host h-localgroup
+
 Match version 8.0 originalhost versioned
 Host version-host
 
@@ -123,7 +126,9 @@ Host exec-host
 		"command-host",
 		"exec-host",
 		"final-host",
+		"h-localgroup",
 		"local-host",
+		"localgroup-host",
 		"prod",
 		"prod-db",
 		"recovered",
