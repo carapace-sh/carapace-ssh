@@ -1284,6 +1284,33 @@ func TestIndexReaderExplicitBaseDirOverridesPathDir(t *testing.T) {
 	}
 }
 
+func TestIndexReaderAndPathsExpandTildeBaseDir(t *testing.T) {
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	baseDir := filepath.Join(home, "cfg")
+	writeFile(t, filepath.Join(baseDir, "inc.conf"), "Host from-tilde-base\n")
+	writeFile(t, filepath.Join(baseDir, "main.conf"), "Host main\nInclude inc.conf\n")
+
+	idx, err := IndexReader(strings.NewReader("Host root\nInclude inc.conf\n"), Source{
+		Path:    filepath.Join(baseDir, "reader.conf"),
+		BaseDir: "~/cfg",
+	}, WithHomeDir(home))
+	if err != nil {
+		t.Fatalf("IndexReader(tilde BaseDir): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"from-tilde-base", "root"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("IndexReader HostCandidates() = %#v, want %#v", got, want)
+	}
+
+	idx, err = IndexPaths([]Source{{Path: "main.conf", BaseDir: "~/cfg"}}, WithHomeDir(home))
+	if err != nil {
+		t.Fatalf("IndexPaths(tilde BaseDir): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"from-tilde-base", "main"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("IndexPaths HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
 func TestIndexPathsRelativeSourcePathUsesBaseDir(t *testing.T) {
 	dir := t.TempDir()
 	baseDir := filepath.Join(dir, "base")
