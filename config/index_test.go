@@ -1583,3 +1583,20 @@ func TestIncludeDirectiveWithQuotedEqualsAndSpaces(t *testing.T) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }
+
+func TestIndexConfigWhitespacePathUsesDefaults(t *testing.T) {
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	userCfg := filepath.Join(home, ".ssh", "config")
+	sysCfg := filepath.Join(dir, "etc", "ssh", "ssh_config")
+	writeFile(t, userCfg, "Host user-only\n")
+	writeFile(t, sysCfg, "Host system-only\n")
+
+	idx, err := IndexConfig("  \t\n ", WithHomeDir(home), WithUserConfigPath(userCfg), WithSystemConfigPath(sysCfg))
+	if err != nil {
+		t.Fatalf("IndexConfig(whitespace): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"system-only", "user-only"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
