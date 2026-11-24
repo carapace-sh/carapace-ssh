@@ -215,6 +215,17 @@ func newIndex() *Index {
 
 func makeSource(path, baseDir string, o indexOptions) Source {
 	expanded := expandTilde(path, o.homeDir)
+	if baseDir != "" {
+		baseDir = expandTilde(baseDir, o.homeDir)
+		if absBase, err := o.abs(baseDir); err == nil {
+			baseDir = absBase
+		} else {
+			baseDir = filepath.Clean(baseDir)
+		}
+	}
+	if !filepath.IsAbs(expanded) && baseDir != "" {
+		expanded = filepath.Join(baseDir, expanded)
+	}
 	absPath, err := o.abs(expanded)
 	if err != nil {
 		absPath = filepath.Clean(expanded)

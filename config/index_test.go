@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/carapace-sh/carapace-ssh/knownhosts"
 )
 
 func writeFile(t *testing.T, path, content string) {
@@ -1155,6 +1157,147 @@ Host h6
 `)
 	idx := mustIndexFile(t, cfg)
 	if got, want := idx.HostCandidates(), []string{"addr-host", "group-host", "h1", "h2", "h3", "h4", "h5", "h6", "laddr-host", "lport-host", "rdomain-host", "rport-host"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
+func TestKnownHostsFilesEnrichmentWithKnownHostsPackage(t *testing.T) {
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	userKH := filepath.Join(home, ".ssh", "known_hosts")
+	globalKH := filepath.Join(dir, "etc", "ssh", "ssh_known_hosts")
+	writeFile(t, userKH, "from-user.example ssh-ed25519 AAAA\n[2001:db8::10]:2222 ssh-ed25519 AAAA\n")
+	writeFile(t, globalKH, "from-global.example ssh-ed25519 AAAA\n")
+
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Host app
+  HostName app.internal
+  UserKnownHostsFile ~/.ssh/known_hosts none
+  GlobalKnownHostsFile `+globalKH+` /missing/ignored
+`)
+
+	idx := mustIndexFile(t, cfg, WithHomeDir(home))
+	// Declared paths are preserved as-is (no token expansion in config indexing),
+	// but empty/"none" values are excluded from aggregation. Tilde paths can be
+	// consumed by knownhosts indexing helpers with configured home.
+	if got, want := idx.KnownHostsFiles(), []string{"/missing/ignored", globalKH, "~/.ssh/known_hosts"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("KnownHostsFiles() = %#v, want %#v", got, want)
+	}
+
+	kh, err := knownhosts.IndexPaths(idx.KnownHostsFiles(), knownhosts.WithHomeDir(home))
+	if err != nil {
+		t.Fatalf("knownhosts.IndexPaths(): %v", err)
+	}
+	merged := knownhosts.Merge(idx.HostCandidates(), kh.HostCandidates())
+	wantMerged := []string{"2001:db8::10", "app", "from-global.example", "from-user.example"}
+	if !reflect.DeepEqual(merged, wantMerged) {
+		t.Fatalf("merged hosts = %#v, want %#v", merged, wantMerged)
+	}
+}
+
+func TestIndexReaderWithPathDerivesBaseDirForIncludes(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "inc.conf"), "Host from-path-dir\n")
+
+	// Path set but BaseDir empty: include base should derive from Path's directory.
+	idx, err := IndexReader(strings.NewReader("Host root\nInclude inc.conf\n"), Source{Path: filepath.Join(dir, "main.conf")})
+	if err != nil {
+		t.Fatalf("IndexReader(Path only): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"from-path-dir", "root"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
+func TestIndexPathsSourceWithoutBaseDirUsesFileDir(t *testing.T) {
+	dir := t.TempDir()
+	base := filepath.Join(dir, "cfg")
+	writeFile(t, filepath.Join(base, "main.conf"), "Host main\nInclude inc.conf\n")
+	writeFile(t, filepath.Join(base, "inc.conf"), "Host included\n")
+
+	idx, err := IndexPaths([]Source{{Path: filepath.Join(base, "main.conf")}})
+	if err != nil {
+		t.Fatalf("IndexPaths(): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"included", "main"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
+func TestExplicitConfigFollowsRelativeGlobAndQuotedIncludes(t *testing.T) {
+	dir := t.TempDir()
+	base := filepath.Join(dir, "cfg")
+	incDir := filepath.Join(base, "conf.d")
+	writeFile(t, filepath.Join(incDir, "a.conf"), "Host inc-a\n")
+	writeFile(t, filepath.Join(incDir, "space name.conf"), "Host inc-space\n")
+	writeFile(t, filepath.Join(base, "main.conf"), "Host main\nInclude conf.d/*.conf\nInclude \"conf.d/space name.conf\"\n")
+
+	idx := mustIndexFile(t, filepath.Join(base, "main.conf"))
+	if got, want := idx.HostCandidates(), []string{"inc-a", "inc-space", "main"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
+func TestStaticFactsAssociatedToAllHostTokensInBlock(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Host one two
+  User shared
+  Port 2201
+
+Match host m1,m2 originalhost m3
+  ProxyJump jump.example
+`)
+
+	idx := mustIndexFile(t, cfg)
+	for _, host := range []string{"one", "two"} {
+		f := idx.Facts(host)
+		if f.User != "shared" || f.Port != "2201" {
+			t.Fatalf("Facts(%q) = %#v, want User=shared Port=2201", host, f)
+		}
+	}
+	for _, host := range []string{"m1", "m2", "m3"} {
+		if f := idx.Facts(host); f.ProxyJump != "jump.example" {
+			t.Fatalf("Facts(%q).ProxyJump = %#v, want %q", host, f.ProxyJump, "jump.example")
+		}
+	}
+}
+
+func TestIndexReaderExplicitBaseDirOverridesPathDir(t *testing.T) {
+	dir := t.TempDir()
+	pathDir := filepath.Join(dir, "pathdir")
+	baseDir := filepath.Join(dir, "basedir")
+	writeFile(t, filepath.Join(pathDir, "inc.conf"), "Host from-pathdir\n")
+	writeFile(t, filepath.Join(baseDir, "inc.conf"), "Host from-basedir\n")
+
+	idx, err := IndexReader(strings.NewReader("Host root\nInclude inc.conf\n"), Source{
+		Path:    filepath.Join(pathDir, "main.conf"),
+		BaseDir: baseDir,
+	})
+	if err != nil {
+		t.Fatalf("IndexReader(Path+BaseDir): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"from-basedir", "root"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
+func TestIndexPathsRelativeSourcePathUsesBaseDir(t *testing.T) {
+	dir := t.TempDir()
+	baseDir := filepath.Join(dir, "base")
+	writeFile(t, filepath.Join(baseDir, "main.conf"), "Host main\nInclude inc.conf\n")
+	writeFile(t, filepath.Join(baseDir, "inc.conf"), "Host included\n")
+
+	idx, err := IndexPaths([]Source{{
+		Path:    "main.conf",
+		BaseDir: baseDir,
+	}})
+	if err != nil {
+		t.Fatalf("IndexPaths(): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"included", "main"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }

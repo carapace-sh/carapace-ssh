@@ -74,14 +74,20 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
   - Kept in-flight known_hosts parser/test tolerance changes passing (host field requires key type/material; bracketed host-without-port and malformed cases covered). `go test ./...` and `go vet ./...` pass.
 
 - [x] known_hosts path handling/enrichment follow-up:
-  - Added leading `~` expansion for `knownhosts.IndexFile`/`IndexPaths` using configured home (with tests and package/skill/AGENTS docs), improving use of config-declared known_hosts paths for enrichment. `go test ./...` and `go vet ./...` pass.
+  - Added leading `~` expansion for `knownhosts.IndexFile`/`IndexPaths` using configured home (with tests and package/skill/AGENTS docs), improving use of config-declared known_hosts paths for enrichment.
+  - Added config↔knownhosts integration coverage showing `config.Index.KnownHostsFiles()` (declared paths as-is, empty/`none` excluded) can be consumed by `knownhosts.IndexPaths` with configured home to enrich/merge hosts (including tilde paths, missing paths tolerated). `go test ./...` and `go vet ./...` pass.
+
+- [x] Include/base-dir context parity follow-up:
+  - Fixed `config.makeSource` to honor explicit `BaseDir` for relative source paths and to expand/normalize `BaseDir` before resolving source paths.
+  - Added tests for `IndexReader` with explicit `BaseDir` overriding `Path` directory, and `IndexPaths` resolving relative source paths against explicit `BaseDir`.
+  - Added config integration test covering known_hosts enrichment from `Index.KnownHostsFiles()` (including `~` and missing/`none` handling) through `knownhosts.IndexPaths`/`Merge`. `go test ./...` and `go vet ./...` pass.
 
 ### Remaining focus
 - Full Match criteria audit/unknown-criterion fallback improvements and additional parsing alignment cases. *(`localaddress` and `group` added; further audit pending)*
 - Broader ssh_config syntax tolerance follow-ups (additional continuation/comment/escape edge cases, explicit `%`/env handling decisions). *(unexpanded `%`/`$ENV` forms now covered for tolerance/static preservation; expansion policy remains out of scope)*
-- Include base-dir/context parity matrix and documentation (`-F`, defaults, `IndexReader`/`IndexPaths`, user vs system, conditional include semantics). *(core behaviors, programmatic contexts, and parity matrix documented in skill refs; implementation/tests may need further parity cases)*
+- Include base-dir/context parity matrix and documentation (`-F`, defaults, `IndexReader`/`IndexPaths`, user vs system, conditional include semantics). *(core behaviors, programmatic contexts, and parity matrix documented in skill refs; explicit `BaseDir` handling and relative `IndexPaths` source cases now covered; more parity cases pending)*
 - Static facts contract/tests/docs (known_hosts path semantics, Match-gated association clarity). *(association and `none`/aggregation semantics documented; further contract tests/docs may be useful)*
-- known_hosts policy/normalization follow-ups (IPv6/bracketed form consistency across packages, multi-path enrichment integration from config-declared paths; CA literal-host policy now explicit but may be revisited if needed). *(tilde expansion for known_hosts path indexing added)*
+- known_hosts policy/normalization follow-ups (IPv6/bracketed form consistency across packages, helper/API ergonomics for config-declared path enrichment; CA literal-host policy now explicit but may be revisited if needed). *(tilde expansion and multi-path enrichment via existing APIs covered)*
 - Longer targeted fuzz runs, regression fixtures, and README/AGENTS/skill reference updates for finalized contracts.
 
 
