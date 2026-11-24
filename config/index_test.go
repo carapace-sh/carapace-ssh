@@ -1562,3 +1562,13 @@ func TestIndexConfigAndHostCandidatesNilIndexSafety(t *testing.T) {
 		t.Fatalf("nil Facts() = %#v", got)
 	}
 }
+
+func TestIndexReaderNilReaderReturnsEmptyIndex(t *testing.T) {
+	idx, err := IndexReader(nil, Source{Path: "x", BaseDir: "."})
+	if err != nil {
+		t.Fatalf("IndexReader(nil): %v", err)
+	}
+	if got := idx.HostCandidates(); len(got) != 0 {
+		t.Fatalf("HostCandidates() = %#v, want empty", got)
+	}
+}
