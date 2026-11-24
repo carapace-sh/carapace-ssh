@@ -113,7 +113,7 @@ func IndexFromConfigPaths(paths []string, opts ...Option) (*Index, error) {
 		if trimmed == "" || strings.EqualFold(trimmed, "none") {
 			continue
 		}
-		filtered = append(filtered, p)
+		filtered = append(filtered, trimmed)
 	}
 	return IndexPaths(filtered, opts...)
 }

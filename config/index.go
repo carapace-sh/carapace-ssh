@@ -69,13 +69,13 @@ func (i *Index) KnownHostsFiles() []string {
 		for _, p := range f.UserKnownHostsFiles {
 			trimmed := strings.TrimSpace(p)
 			if trimmed != "" && !strings.EqualFold(trimmed, "none") {
-				paths[p] = struct{}{}
+				paths[trimmed] = struct{}{}
 			}
 		}
 		for _, p := range f.GlobalKnownHostsFiles {
 			trimmed := strings.TrimSpace(p)
 			if trimmed != "" && !strings.EqualFold(trimmed, "none") {
-				paths[p] = struct{}{}
+				paths[trimmed] = struct{}{}
 			}
 		}
 	}
