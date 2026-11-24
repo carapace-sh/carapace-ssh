@@ -1543,3 +1543,22 @@ Host plain
 		t.Fatalf("Facts(plain).User = %q, want plainuser", f.User)
 	}
 }
+
+func TestIndexConfigAndHostCandidatesNilIndexSafety(t *testing.T) {
+	var idx *Index
+	if got := idx.HostCandidates(); len(got) != 0 {
+		t.Fatalf("nil HostCandidates() = %#v", got)
+	}
+	if got := idx.DeclaredHosts(); len(got) != 0 {
+		t.Fatalf("nil DeclaredHosts() = %#v", got)
+	}
+	if got := idx.HostsWithFacts(); len(got) != 0 {
+		t.Fatalf("nil HostsWithFacts() = %#v", got)
+	}
+	if got := idx.KnownHostsFiles(); len(got) != 0 {
+		t.Fatalf("nil KnownHostsFiles() = %#v", got)
+	}
+	if got := idx.Facts("x"); !reflect.DeepEqual(got, HostFacts{}) {
+		t.Fatalf("nil Facts() = %#v", got)
+	}
+}
