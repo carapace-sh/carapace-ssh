@@ -79,8 +79,8 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 
 - [x] Include/base-dir context parity follow-up:
   - Fixed `config.makeSource` to honor explicit `BaseDir` for relative source paths and to expand/normalize `BaseDir` before resolving source paths.
-  - Added tests for `IndexReader` with explicit `BaseDir` overriding `Path` directory, and `IndexPaths` resolving relative source paths against explicit `BaseDir`.
-  - Added config integration test covering known_hosts enrichment from `Index.KnownHostsFiles()` (including `~` and missing/`none` handling) through `knownhosts.IndexPaths`/`Merge`. `go test ./...` and `go vet ./...` pass.
+  - Preserved explicit `BaseDir` for top-level source indexing so `IndexPaths`/file sources use configured include context; normalized `IndexReader` `BaseDir` (including `~`) before include resolution.
+  - Added tests for `IndexReader` explicit/tilde `BaseDir` (with and without `Path`), `IndexPaths` relative-source and explicit `BaseDir` precedence, and config↔knownhosts enrichment integration via `Index.KnownHostsFiles()` + `knownhosts.IndexPaths`/`Merge`. Updated OpenSSH defaults/include references. `go test ./...` and `go vet ./...` pass.
 
 ### Remaining focus
 - Full Match criteria audit/unknown-criterion fallback improvements and additional parsing alignment cases. *(`localaddress` and `group` added; further audit pending)*
