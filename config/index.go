@@ -59,6 +59,8 @@ func (i *Index) HostsWithFacts() []string {
 
 // KnownHostsFiles returns deduplicated, sorted UserKnownHostsFile and
 // GlobalKnownHostsFile paths declared in collected static facts.
+// Whitespace-padded paths are trimmed; empty and case-insensitive "none"
+// values are excluded. Declared facts preserve original values as written.
 func (i *Index) KnownHostsFiles() []string {
 	if i == nil {
 		return []string{}
