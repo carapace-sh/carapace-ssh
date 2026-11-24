@@ -75,7 +75,8 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 
 - [x] known_hosts path handling/enrichment follow-up:
   - Added leading `~` expansion for `knownhosts.IndexFile`/`IndexPaths` using configured home (with tests and package/skill/AGENTS docs), improving use of config-declared known_hosts paths for enrichment.
-  - Added config↔knownhosts integration coverage showing `config.Index.KnownHostsFiles()` (declared paths as-is, empty/`none` excluded) can be consumed by `knownhosts.IndexPaths` with configured home to enrich/merge hosts (including tilde paths, missing paths tolerated). `go test ./...` and `go vet ./...` pass.
+  - Added config↔knownhosts integration coverage showing `config.Index.KnownHostsFiles()` (declared paths as-is, empty/`none` excluded) can be consumed by `knownhosts.IndexPaths`/`IndexFromConfigPaths` with configured home to enrich/merge hosts (including tilde paths, missing paths tolerated). `go test ./...` and `go vet ./...` pass.
+  - Added `knownhosts.IndexFromConfigPaths(...)` helper and docs for config-declared UserKnownHostsFile/GlobalKnownHostsFile enrichment.
 
 - [x] Include/base-dir context parity follow-up:
   - Fixed `config.makeSource` to honor explicit `BaseDir` for relative source paths and to expand/normalize `BaseDir` before resolving source paths.
