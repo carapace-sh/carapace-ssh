@@ -240,7 +240,7 @@ func TestIndexFromConfigPaths(t *testing.T) {
 	writeFile(t, userKH, "user.example ssh-ed25519 AAAA\n")
 	writeFile(t, globalKH, "global.example ssh-ed25519 AAAA\n")
 
-	idx, err := IndexFromConfigPaths([]string{"", "none", "NONE", "~/.ssh/known_hosts", globalKH, "/missing"}, WithHomeDir(home))
+	idx, err := IndexFromConfigPaths([]string{"", " none ", "NONE", "  ", "~/.ssh/known_hosts", globalKH, "/missing"}, WithHomeDir(home))
 	if err != nil {
 		t.Fatalf("IndexFromConfigPaths(): %v", err)
 	}

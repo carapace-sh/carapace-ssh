@@ -67,12 +67,14 @@ func (i *Index) KnownHostsFiles() []string {
 	for _, host := range sortedFactsKeys(i.facts) {
 		f := i.facts[host]
 		for _, p := range f.UserKnownHostsFiles {
-			if p != "" && !strings.EqualFold(p, "none") {
+			trimmed := strings.TrimSpace(p)
+			if trimmed != "" && !strings.EqualFold(trimmed, "none") {
 				paths[p] = struct{}{}
 			}
 		}
 		for _, p := range f.GlobalKnownHostsFiles {
-			if p != "" && !strings.EqualFold(p, "none") {
+			trimmed := strings.TrimSpace(p)
+			if trimmed != "" && !strings.EqualFold(trimmed, "none") {
 				paths[p] = struct{}{}
 			}
 		}

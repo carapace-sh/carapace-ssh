@@ -109,7 +109,8 @@ func IndexDefault(opts ...Option) (*Index, error) {
 func IndexFromConfigPaths(paths []string, opts ...Option) (*Index, error) {
 	filtered := make([]string, 0, len(paths))
 	for _, p := range paths {
-		if p == "" || strings.EqualFold(p, "none") {
+		trimmed := strings.TrimSpace(p)
+		if trimmed == "" || strings.EqualFold(trimmed, "none") {
 			continue
 		}
 		filtered = append(filtered, p)
