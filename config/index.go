@@ -280,9 +280,13 @@ func (ix *indexer) indexFile(idx *Index, path string, ctx Source, missingOK bool
 		return err
 	}
 
+	baseDir := filepath.Dir(resolved.readPath)
+	if !missingOK && ctx.BaseDir != "" {
+		baseDir = ctx.BaseDir
+	}
 	ix.indexContent(idx, content, Source{
 		Path:    resolved.readPath,
-		BaseDir: filepath.Dir(resolved.readPath),
+		BaseDir: baseDir,
 		System:  ctx.System,
 	})
 	return nil
