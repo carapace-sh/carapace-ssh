@@ -56,6 +56,12 @@ func extractMatchHosts(args []string) []string {
 		// preserve alignment for later host/originalhost where possible, unless it
 		// looks like another criterion token. This is best-effort.
 		if hasInline {
+			if inlineValue == "" && i+1 < len(args) {
+				next := strings.TrimSpace(args[i+1])
+				if next != "" && !isKnownCriterionToken(next) && !strings.HasPrefix(next, "=") {
+					i++
+				}
+			}
 			continue
 		}
 		if i+1 < len(args) {
