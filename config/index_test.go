@@ -1291,6 +1291,23 @@ Match host m1,m2 originalhost m3
 	}
 }
 
+func TestKnownHostsFilesIgnoresEmptyAndNoneCaseInsensitive(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Host a
+  UserKnownHostsFile "" none NONE ~/kh
+  GlobalKnownHostsFile /etc/ssh/kh none
+`)
+	idx := mustIndexFile(t, cfg)
+	if got, want := idx.KnownHostsFiles(), []string{"/etc/ssh/kh", "~/kh"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("KnownHostsFiles() = %#v, want %#v", got, want)
+	}
+	if got := idx.Facts("a").UserKnownHostsFiles; !reflect.DeepEqual(got, []string{"none", "NONE", "~/kh"}) {
+		t.Fatalf("Facts(a).UserKnownHostsFiles = %#v", got)
+	}
+}
+
 func TestIndexReaderExplicitBaseDirOverridesPathDir(t *testing.T) {
 	dir := t.TempDir()
 	pathDir := filepath.Join(dir, "pathdir")
