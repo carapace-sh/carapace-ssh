@@ -334,6 +334,22 @@ func TestIndexPathsPreservesSystemSourceContext(t *testing.T) {
 	}
 }
 
+func TestIndexPathsSystemSourceWithoutBaseDirUsesSystemDir(t *testing.T) {
+	dir := t.TempDir()
+	sysBase := filepath.Join(dir, "etc", "ssh")
+	sysCfg := filepath.Join(sysBase, "ssh_config")
+	writeFile(t, filepath.Join(sysBase, "included.conf"), "Host from-system\n")
+	writeFile(t, sysCfg, "Host main\nInclude included.conf\n")
+
+	idx, err := IndexPaths([]Source{{Path: sysCfg, System: true}}, WithSystemConfigPath(sysCfg))
+	if err != nil {
+		t.Fatalf("IndexPaths(): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"from-system", "main"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
 func TestDefaultSources(t *testing.T) {
 	dir := t.TempDir()
 	home := filepath.Join(dir, "home")
