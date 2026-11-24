@@ -1007,9 +1007,12 @@ Host h5
 
 Match unknowncriterion= host ok7
 Host h6
+
+Match unknowncriterion="" host ok8
+Host h7
 `)
 	idx := mustIndexFile(t, cfg)
-	if got, want := idx.HostCandidates(), []string{"h1", "h2", "h3", "h4", "h5", "h6", "ok1", "ok2", "ok3", "ok4", "ok5", "ok6", "ok7"}; !reflect.DeepEqual(got, want) {
+	if got, want := idx.HostCandidates(), []string{"h1", "h2", "h3", "h4", "h5", "h6", "h7", "ok1", "ok2", "ok3", "ok4", "ok5", "ok6", "ok7", "ok8"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
 }
