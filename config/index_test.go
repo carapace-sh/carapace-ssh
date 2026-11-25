@@ -394,6 +394,37 @@ func TestIndexPathsMissingSourcesNonFatal(t *testing.T) {
 	}
 }
 
+func TestIndexPathsRelativeSystemSourceUsesSystemConfigDir(t *testing.T) {
+	dir := t.TempDir()
+	sysBase := filepath.Join(dir, "etc", "ssh")
+	sysCfg := filepath.Join(sysBase, "ssh_config")
+	writeFile(t, filepath.Join(sysBase, "inc.conf"), "Host from-system\n")
+	writeFile(t, sysCfg, "Host main\nInclude inc.conf\n")
+
+	idx, err := IndexPaths([]Source{{Path: "ssh_config", System: true}}, WithSystemConfigPath(sysCfg))
+	if err != nil {
+		t.Fatalf("IndexPaths(): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"from-system", "main"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
+func TestIndexReaderRelativeSystemPathUsesSystemConfigDir(t *testing.T) {
+	dir := t.TempDir()
+	sysBase := filepath.Join(dir, "etc", "ssh")
+	sysCfg := filepath.Join(sysBase, "ssh_config")
+	writeFile(t, filepath.Join(sysBase, "inc.conf"), "Host from-system\n")
+
+	idx, err := IndexReader(strings.NewReader("Host main\nInclude inc.conf\n"), Source{Path: "ssh_config", System: true}, WithSystemConfigPath(sysCfg))
+	if err != nil {
+		t.Fatalf("IndexReader(): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"from-system", "main"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
 func TestDefaultSources(t *testing.T) {
 	dir := t.TempDir()
 	home := filepath.Join(dir, "home")
