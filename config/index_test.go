@@ -1616,23 +1616,35 @@ Host "a b" c\ d plain
 	}
 }
 
-func TestNegatedHostFactsNotAssociatedByCurrentContract(t *testing.T) {
+func TestNegatedHostTokenFactsAssociationContract(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
 	writeFile(t, cfg, `
 Host !bad good
   User alice
+  UserKnownHostsFile ~/.ssh/kh_good
 `)
 	idx := mustIndexFile(t, cfg)
 	if got, want := idx.HostCandidates(), []string{"good"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
 	}
+	if got, want := idx.DeclaredHosts(), []string{"!bad", "good"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("DeclaredHosts() = %#v, want %#v", got, want)
+	}
 	if f := idx.Facts("good"); f.User != "alice" {
 		t.Fatalf("Facts(good).User = %q, want alice", f.User)
 	}
-	// Negated tokens are declared and currently receive block fact association;
-	// this test locks in the present static contract.
+	// Current static contract: negated Host tokens are declared and receive
+	// block fact association, but they are not completable host candidates.
 	if f := idx.Facts("!bad"); f.User != "alice" {
 		t.Fatalf("Facts(!bad).User = %q, want alice", f.User)
+	}
+	if got, want := idx.Facts("!bad").UserKnownHostsFiles, []string{"~/.ssh/kh_good"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("Facts(!bad).UserKnownHostsFiles = %#v, want %#v", got, want)
+	}
+	// Aggregated known_hosts paths include paths declared under any fact-bearing
+	// host token in the current static model.
+	if got, want := idx.KnownHostsFiles(), []string{"~/.ssh/kh_good"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("KnownHostsFiles() = %#v, want %#v", got, want)
 	}
 }
