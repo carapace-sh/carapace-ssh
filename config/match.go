@@ -93,6 +93,11 @@ func matchCriterionValue(args []string, i int, inlineValue string, hasInline boo
 			return inlineValue, i
 		}
 		if i+1 < len(args) {
+			next := strings.TrimSpace(args[i+1])
+			if next == "" || strings.HasPrefix(next, "=") || isKnownCriterionToken(next) {
+				// Empty inline value: do not swallow the next criterion token.
+				return "", i
+			}
 			return args[i+1], i + 1
 		}
 		return "", i
@@ -103,6 +108,11 @@ func matchCriterionValue(args []string, i int, inlineValue string, hasInline boo
 	next := strings.TrimSpace(args[i+1])
 	if next == "=" {
 		if i+2 < len(args) {
+			value := strings.TrimSpace(args[i+2])
+			if value == "" || strings.HasPrefix(value, "=") || isKnownCriterionToken(value) {
+				// Spaced equals with a following criterion token: consume only the "=".
+				return "", i + 1
+			}
 			return args[i+2], i + 2
 		}
 		return "", i + 1

@@ -27,14 +27,17 @@ func parseLine(line string, add func(string)) {
 	}
 
 	marker := ""
-	// Optional markers @cert-authority / @revoked
-	switch fields[0] {
-	case "@cert-authority", "@revoked":
+	// Optional markers @cert-authority / @revoked; unknown @-markers invalidate
+	// the whole line (mirroring OpenSSH), so it is skipped entirely.
+	switch {
+	case fields[0] == "@cert-authority", fields[0] == "@revoked":
 		marker = fields[0]
 		if len(fields) < 2 {
 			return
 		}
 		fields = fields[1:]
+	case strings.HasPrefix(fields[0], "@"):
+		return
 	}
 
 	hostField := fields[0]
@@ -59,6 +62,7 @@ func parseLine(line string, add func(string)) {
 		}
 
 		host := token
+		bracketed := false
 		// [host]:port form
 		if strings.HasPrefix(token, "[") {
 			end := strings.Index(token, "]")
@@ -66,8 +70,14 @@ func parseLine(line string, add func(string)) {
 				continue
 			}
 			host = token[1:end]
+			bracketed = true
 			// Keep bracketed host token parsing tolerant; ignore malformed suffixes
 			// beyond the closing bracket except for standard :port presence.
+		}
+		// OpenSSH requires the bracketed form to disambiguate colons (ports, IPv6);
+		// an unbracketed token containing ':' cannot be a connectable host.
+		if !bracketed && strings.Contains(host, ":") {
+			continue
 		}
 
 		if isCompletableHost(host) {

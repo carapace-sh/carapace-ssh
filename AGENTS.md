@@ -8,7 +8,7 @@ Development notes for `carapace-ssh` (`github.com/carapace-sh/carapace-ssh`, Go 
 go test ./...                          # run all package tests
 go test ./config ./knownhosts          # run specific packages
 go vet ./...                           # static checks
-go test ./config -run '^$' -fuzz=Fuzz  # run fuzz tests explicitly (also knownhosts/authorizedkeys/destination)
+go test ./config -run '^$' -fuzz=FuzzIndexReader  # run a fuzz target explicitly (config also has FuzzParseDirectives; knownhosts/authorizedkeys/destination have one each)
 ```
 
 - No `Makefile`, CI workflows, or linter config files are present. Do not invent `golangci-lint`, format, or release commands.

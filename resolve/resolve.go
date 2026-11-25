@@ -6,13 +6,31 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"time"
 )
+
+// DefaultTimeout bounds the ssh -G execution started by Host so a hung ssh
+// cannot block a completer indefinitely. HostContext callers control their own
+// deadline via the provided context.
+const DefaultTimeout = 5 * time.Second
 
 // Result contains resolved ssh configuration values for a host.
 type Result struct {
 	Host   string
 	values map[string][]string
 	order  []string
+}
+
+// Host resolves a host using `ssh -G`. This is opt-in and executes an external
+// process; it must not be used by default completion paths.
+//
+// Host applies a default timeout (see DefaultTimeout) so a hung ssh cannot
+// block a completer indefinitely. Use HostContext for full control over the
+// deadline and cancellation.
+func Host(host string, opts ...Option) (*Result, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultTimeout)
+	defer cancel()
+	return HostContext(ctx, host, opts...)
 }
 
 // First returns the first value for a canonicalized key, or empty string.
@@ -112,10 +130,6 @@ func WithRunner(runner Runner) Option {
 
 // Host resolves a host using `ssh -G`. This is opt-in and executes an external
 // process; it must not be used by default completion paths.
-func Host(host string, opts ...Option) (*Result, error) {
-	return HostContext(context.Background(), host, opts...)
-}
-
 // HostContext resolves a host using `ssh -G` with the provided context.
 // This is opt-in and executes an external process; it must not be used by
 // default completion paths.

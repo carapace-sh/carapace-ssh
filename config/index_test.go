@@ -1,10 +1,10 @@
 package config
 
 import (
-	"slices"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 

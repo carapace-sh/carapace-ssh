@@ -168,15 +168,21 @@ func scpSeparatorIndex(s string) int {
 	return -1
 }
 
+// isWindowsDrivePath reports whether s looks like a Windows drive-letter path
+// (e.g. C:\path or C:/path). A single-letter host followed by a separator-less
+// colon (e.g. a:file, a valid Unix scp remote) is not classified as a drive path.
 func isWindowsDrivePath(s string) bool {
-	if len(s) < 2 {
+	if len(s) < 2 || s[1] != ':' {
 		return false
 	}
 	c := s[0]
 	if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
 		return false
 	}
-	return s[1] == ':'
+	if len(s) == 2 {
+		return true
+	}
+	return s[2] == '\\' || s[2] == '/'
 }
 
 // SplitProxyJump splits a ProxyJump specification into hop strings.

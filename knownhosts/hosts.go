@@ -6,10 +6,10 @@ func isCompletableHost(host string) bool {
 	if host == "" {
 		return false
 	}
-	// Exclude wildcards, negations, and whitespace/control-like separators.
+	// Exclude wildcards, negations, markers, and whitespace/control-like separators.
 	for _, r := range host {
 		switch r {
-		case '*', '?', '!', '[', ']', '{', '}', '(', ')', '|', '+', '^', '$', ' ', '\t', '\r', '\n', ',':
+		case '*', '?', '!', '[', ']', '{', '}', '(', ')', '|', '+', '^', '$', '@', ' ', '\t', '\r', '\n', ',':
 			return false
 		}
 	}

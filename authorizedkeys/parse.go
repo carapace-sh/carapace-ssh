@@ -143,11 +143,14 @@ func splitFields(s string) []string {
 	for i := 0; i < len(s); i++ {
 		c := s[i]
 		if escaped {
+			// Keep escape sequences intact so downstream option parsing can
+			// interpret them exactly once.
 			cur.WriteByte(c)
 			escaped = false
 			continue
 		}
 		if c == '\\' && inDouble {
+			cur.WriteByte(c)
 			escaped = true
 			continue
 		}
@@ -161,9 +164,6 @@ func splitFields(s string) []string {
 			continue
 		}
 		cur.WriteByte(c)
-	}
-	if escaped {
-		cur.WriteByte('\\')
 	}
 	flush()
 	return fields
@@ -222,11 +222,14 @@ func parseOptions(s string) []string {
 	for i := 0; i < len(s); i++ {
 		c := s[i]
 		if escaped {
+			// Escape sequences arrive intact from field splitting; keep them
+			// verbatim (an escaped quote must not toggle quote state).
 			cur.WriteByte(c)
 			escaped = false
 			continue
 		}
 		if c == '\\' && inDouble {
+			cur.WriteByte(c)
 			escaped = true
 			continue
 		}
@@ -240,9 +243,6 @@ func parseOptions(s string) []string {
 			continue
 		}
 		cur.WriteByte(c)
-	}
-	if escaped {
-		cur.WriteByte('\\')
 	}
 	flush()
 	return opts

@@ -131,11 +131,14 @@ func stripComment(line string) string {
 	return line
 }
 
+func isASCIIWhitespace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\f' || c == '\r'
+}
+
 func splitKeyword(line string) (keyword, rest string, ok bool) {
 	i := 0
 	for i < len(line) {
-		r := rune(line[i])
-		if unicode.IsSpace(r) || line[i] == '=' {
+		if isASCIIWhitespace(line[i]) || line[i] == '=' {
 			break
 		}
 		i++
@@ -193,7 +196,7 @@ func splitArgs(s string) []string {
 				continue
 			}
 		}
-		if !inSingle && !inDouble && unicode.IsSpace(rune(c)) {
+		if !inSingle && !inDouble && isASCIIWhitespace(c) {
 			flush()
 			continue
 		}
