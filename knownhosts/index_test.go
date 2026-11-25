@@ -72,6 +72,24 @@ func TestIndexPathsAndDefault(t *testing.T) {
 	}
 }
 
+func TestIndexPathsDeterministicAndNonFatal(t *testing.T) {
+	dir := t.TempDir()
+	a := filepath.Join(dir, "a")
+	b := filepath.Join(dir, "b")
+	writeFile(t, a, "z.example ssh-ed25519 AAAA\na.example ssh-ed25519 AAAA\n")
+	writeFile(t, b, "m.example ssh-ed25519 AAAA\na.example ssh-ed25519 AAAA\n")
+
+	for i := 0; i < 5; i++ {
+		idx, err := IndexPaths([]string{filepath.Join(dir, "missing"), a, b, ""})
+		if err != nil {
+			t.Fatalf("IndexPaths() run %d: %v", i, err)
+		}
+		if got, want := idx.HostCandidates(), []string{"a.example", "m.example", "z.example"}; !reflect.DeepEqual(got, want) {
+			t.Fatalf("run %d HostCandidates() = %#v, want %#v", i, got, want)
+		}
+	}
+}
+
 func TestIndexReaderAndMerge(t *testing.T) {
 	idx, err := IndexReader(strings.NewReader("one.example ssh-ed25519 AAAA\n[two.example]:22 ssh-ed25519 AAAA\n"))
 	if err != nil {
