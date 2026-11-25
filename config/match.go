@@ -114,9 +114,5 @@ func matchCriterionValue(args []string, i int, inlineValue string, hasInline boo
 }
 
 func isKnownCriterionToken(s string) bool {
-	if option.IsKnownMatchCriterion(s) {
-		return true
-	}
-	_, ok := option.LookupMatchCriterion(s)
-	return ok
+	return option.IsKnownMatchCriterion(s)
 }

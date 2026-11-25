@@ -73,6 +73,30 @@ func TestHostRunnerError(t *testing.T) {
 	}
 }
 
+func TestHostContext(t *testing.T) {
+	type ctxKey struct{}
+	ctx := context.WithValue(context.Background(), ctxKey{}, "ok")
+	_, err := HostContext(ctx, "example", WithRunner(func(got context.Context, _ string, _ []string) ([]byte, error) {
+		if got.Value(ctxKey{}) != "ok" {
+			t.Fatalf("context value missing")
+		}
+		return []byte("hostname example\n"), nil
+	}))
+	if err != nil {
+		t.Fatalf("HostContext(): %v", err)
+	}
+
+	_, err = HostContext(nil, "example", WithRunner(func(got context.Context, _ string, _ []string) ([]byte, error) {
+		if got == nil {
+			t.Fatal("ctx should not be nil")
+		}
+		return []byte("hostname example\n"), nil
+	}))
+	if err != nil {
+		t.Fatalf("HostContext(nil ctx): %v", err)
+	}
+}
+
 func TestNilResult(t *testing.T) {
 	var r *Result
 	if r.First("user") != "" {

@@ -347,6 +347,9 @@ func (r Remote) ToURI() (URI, bool) {
 
 // ParseRemote parses a remote destination from either URI or scp-style syntax.
 // It returns ok=false for local paths without a remote host separator.
+// URI parsing is attempted first; if a URI-shaped string is malformed as a URI,
+// tolerant scp-style parsing may still classify it as a remote. Use ParseURI
+// when URI-only acceptance is required.
 func ParseRemote(s string) (Remote, bool) {
 	if uri, ok := ParseURI(s); ok {
 		return Remote{

@@ -8,7 +8,8 @@
 // negations, or whitespace). DeclaredHosts preserves declared Host/Match host
 // tokens as written/normalized for inspection, including patterns and negations.
 // Static facts are associated on a best-effort basis and are not ssh -G
-// equivalent.
+// equivalent; facts may also be associated with declared negated Host tokens
+// in the current static model.
 //
 // Parsing and indexing do not evaluate runtime conditions and never execute
 // Match exec or Match command directives. Unknown keywords/criteria, malformed

@@ -25,6 +25,14 @@
 
 This library is not an `ssh -G`-compatible evaluator and does not perform dynamic Match evaluation, canonicalization, or token expansion.
 
+## Contract notes
+
+- `HostCandidates()` returns literal completable hosts; `DeclaredHosts()` preserves declared tokens including patterns/negations.
+- `Include` directives inside `Host`/`Match` blocks are followed conservatively for discovery (completion-safe over-inclusion).
+- Static facts are best-effort and non-authoritative; in the current static model facts may be associated with declared negated `Host` tokens.
+- `destination.ParseRemote()` tries URI parsing first and may fall back to tolerant SCP-style parsing; use `destination.ParseURI()` for URI-only acceptance.
+- `option` metadata is curated for completion-safe parsing, not a full ssh_config specification.
+
 ## Usage
 
 ```go

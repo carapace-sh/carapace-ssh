@@ -113,9 +113,19 @@ func WithRunner(runner Runner) Option {
 // Host resolves a host using `ssh -G`. This is opt-in and executes an external
 // process; it must not be used by default completion paths.
 func Host(host string, opts ...Option) (*Result, error) {
+	return HostContext(context.Background(), host, opts...)
+}
+
+// HostContext resolves a host using `ssh -G` with the provided context.
+// This is opt-in and executes an external process; it must not be used by
+// default completion paths.
+func HostContext(ctx context.Context, host string, opts ...Option) (*Result, error) {
 	host = strings.TrimSpace(host)
 	if host == "" {
 		return nil, fmt.Errorf("resolve: host is required")
+	}
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
 	o := options{sshPath: "ssh", runner: defaultRunner}
@@ -137,7 +147,7 @@ func Host(host string, opts ...Option) (*Result, error) {
 	}
 	args = append(args, "-G", "--", host)
 
-	out, err := o.runner(context.Background(), o.sshPath, args)
+	out, err := o.runner(ctx, o.sshPath, args)
 	if err != nil {
 		return nil, fmt.Errorf("resolve: ssh -G: %w", err)
 	}
