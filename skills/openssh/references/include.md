@@ -1,92 +1,32 @@
-# Include Resolution
+# Include Directive
 
-Rules and constraints for following `Include` directives when indexing ssh_config for completion. Include handling must be tolerant, cycle-safe, and side-effect-free.
+Semantics of `Include` per ssh_config(5).
 
-## Purpose
+## Definition
 
-`Include` can pull host declarations and further includes from other files. The indexer must follow includes to build a complete host-candidate view, but without executing commands or failing the entire index because one include is missing.
+`Include` includes the specified configuration file(s):
 
-## Supported behaviors
+- **Multiple pathnames** may be specified in one `Include` directive.
+- Each pathname may contain **glob(7) wildcards**, **TOKENS**, and **environment variables**; for user configurations, shell-like `~` references to the user's home directory are also allowed.
+- Wildcards are expanded and processed in **lexical order**.
+- **Relative paths are assumed to be in `~/.ssh`** if included from a user configuration file, or in `/etc/ssh` if included from the system configuration file.
+- `Include` **may appear inside a `Host` or `Match` block** to perform conditional inclusion.
 
-- **Recognize `Include` directives** case-insensitively, with optional `=` and flexible whitespace (see [ssh-config-syntax.md](ssh-config-syntax.md)).
-- **Expand `~`** in include paths.
-- **Resolve relative paths** according to documented base-dir rules (configurable).
-- **Expand globs** in include patterns.
-- **Recurse** into included files.
-- **Cycle detection** by resolved path.
-- **Preserve quoted paths/arguments** and `=` forms as needed.
-- **Non-fatal missing/unreadable matches**: continue indexing remaining config.
+## What OpenSSH does not specify
 
-## Path resolution and base directories
+- Cycle handling is not specified; a parser following includes recursively should detect them (e.g. by resolved path) to avoid infinite loops.
+- Missing files make `ssh` fail; tolerant completion extractors commonly treat missing/unreadable include targets as non-fatal and continue.
+- Conditional inclusion means the file's contents apply only when the enclosing block matches; a static extractor that wants over-approximation (prefer missing a candidate over guaranteed coverage) may conservatively follow such includes.
 
-Relative path resolution must be **explicitly defined and tested** because OpenSSH behavior differs by context/version.
+## Extraction considerations
 
-Common contexts (configurable; define and test explicitly):
-- **User config context**: relative to `~/.ssh` for certain cases (commonly relevant to default user config resolution).
-- **System config context**: relative to `/etc/ssh`.
-- **Including-file directory**: relative includes are commonly resolved relative to the file containing the directive when a file context exists.
-
-Implementation should model context via an explicit source/options type (e.g. `Source { Path, BaseDir, System }` or equivalent options) rather than hidden globals. Callers/tests must be able to control base dirs and roots.
-
-Design highlights (one common approach):
-- Explicit file-path indexing and file-backed includes use the including file's directory as base context for traversal.
-- Source-list indexing respects `Source.BaseDir`/`Source.System` when provided. Explicit `BaseDir` is expanded/normalized and used for resolving relative source paths and top-level include context. Relative `System=true` source paths with no `BaseDir` resolve against the configured system config directory.
-- Reader-based indexing uses `Source.BaseDir` (expanded/normalized) or `Source.Path`'s directory when available; with no path/base dir it falls back to `~/.ssh` for user context or the configured system config directory for system context. Relative `System=true` `Path` values are resolved against the configured system config directory when no `BaseDir` is set.
-- `~` is expanded in include patterns/paths using configured home dir; OpenSSH token expansion (`%h`, `%u`, etc.) and environment-variable expansion are not performed. Quoted/`=` include forms are parsed; glob ordering is deterministic (sorted matches).
-
-Token expansion (e.g. `%h`, `%u`) is generally not statically available for completion-safe indexing; avoid runtime expansion. Unexpanded `%`/`$ENV`-like forms are treated tolerantly (no execution/dynamic expansion). See [defaults.md](defaults.md) for the context parity matrix.
-
-## Globbing
-
-- Expand glob patterns in include arguments.
-- A pattern that matches no files is not an error that should abort indexing (treat as non-fatal).
-- Process matched files in a deterministic order where practical (avoid map-iteration nondeterminism in public-visible results).
-
-## Quoting and argument forms
-
-- Preserve and correctly interpret quoted include paths (paths with spaces).
-- Accept `Include=/path/...`, `Include /path/...`, `Include "~/path with spaces/*.conf"` and similar forms.
-- Multiple include targets/arguments may appear; handle according to OpenSSH-style expectations where feasible.
-
-## Recursion and cycle detection
-
-- Included files may themselves contain `Include` directives; recurse.
-- Detect cycles using **resolved (canonicalized for identity) paths** so the same file is not indexed repeatedly in a loop.
-- When a cycle is detected, stop recursing into that edge without failing the whole index.
-
-## Error tolerance
-
-| Condition | Behavior |
-|-----------|----------|
-| Include path does not exist | Non-fatal; continue. |
-| Glob matches nothing | Non-fatal; continue. |
-| Permission denied / unreadable file | Non-fatal; continue (best-effort). |
-| Broken/odd include line | Best-effort parse/skip; do not abort entire config graph. |
-| Symlinks | Policy may be defined if needed (read limits/symlink policy options mentioned in API sketch); be explicit and test. |
-
-## Interaction with config sources
-
-- **Explicit config path (`-F`)**: read only that file as the entry (no implicit merge of system/user defaults) but follow its `Include`s.
-- **Default discovery**: index user/system entry points and their includes under appropriate base dirs. Drop-in defaults (e.g. `/etc/ssh/ssh_config.d/*.conf`) should be added only with clearly defined, tested rules.
-- **Conditional placement**: OpenSSH applies `Include` conditionally inside `Host`/`Match` blocks. The current completion-safe static indexer follows such includes conservatively for host discovery (preferring over-inclusion to missed candidates); this tradeoff is explicit and regression-tested.
-
-See [defaults.md](defaults.md).
-
-## Testing expectations
-
-Recommended coverage:
-- nested includes
-- glob includes
-- quoted paths and paths with spaces
-- `=` forms
-- relative paths
-- cycles
-- missing includes
-
-Fixtures should live under `testdata/` and be table-driven where practical. See [testing.md](testing.md).
+- Resolve relative paths according to the context of the including file (user vs system), as ssh does.
+- Preserve quoted paths and the `=` separator form; multiple include targets per line are valid.
+- Expand `~` using the local user's home directory; leave TOKENS and environment variables unexpanded (their values depend on connection/local state).
+- Process glob matches in sorted (lexical) order for deterministic results.
 
 ## Related
 
-- [ssh-config-syntax.md](ssh-config-syntax.md) — directive/token parsing.
-- [defaults.md](defaults.md) — entry points and base-dir contexts.
-- [overview.md](overview.md) — tolerance and explicit-context principles.
+- [ssh-config-syntax.md](ssh-config-syntax.md) — quoting and `=` forms.
+- [defaults.md](defaults.md) — user vs system contexts and entry points.
+- [overview.md](overview.md) — sources and precedence.

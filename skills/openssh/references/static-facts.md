@@ -1,76 +1,44 @@
-# Static Per-Host Facts
+# Host-Specific Directives
 
-Extraction of useful declared directives per host/block without dynamic evaluation. Enables richer completion (identity files, users, ports, jump hosts) while staying completion-safe.
+Directives that declare per-host facts in ssh_config, and what is knowable about them statically.
 
-## Goal
+## The directives
 
-A config index/model can retain statically present directive facts and expose query APIs for best-effort per-host information (for example per-host facts, hosts with facts, and declared known_hosts file paths). This does **not** attempt `ssh -G` parity or runtime condition evaluation.
+| Directive | Value | Default (per ssh_config(5)) | Completion relevance |
+|-----------|-------|------------------------------|----------------------|
+| `HostName` | real hostname (nicknames allowed) | the name given on the command line | effective destination; TOKENS allowed |
+| `User` | remote username | local user | suggest `user@host` prefixes |
+| `Port` | port number | 22 | suggest nonstandard ports |
+| `IdentityFile` | identity path (repeatable; list adds up) | `~/.ssh/id_*` defaults | host-aware `-i` / identity suggestions; `-cert.pub` pairing |
+| `CertificateFile` | certificate path (repeatable) | none | certificate suggestions |
+| `ProxyJump` | `[user@]host[:port]`, comma-separated multi-hop, ssh URI, or `none` | none | jump-host (`-J`) suggestions |
+| `ProxyCommand` | command string (extends to end of line) | none | proxy context; **never execute** |
+| `IdentityAgent` | agent socket path, `none`, `SSH_AUTH_SOCK`, `$VAR` | `SSH_AUTH_SOCK` behavior | agent-aware context |
+| `UserKnownHostsFile` | one or more paths | `~/.ssh/known_hosts`, `~/.ssh/known_hosts2` | locate per-host known_hosts sources |
+| `GlobalKnownHostsFile` | one or more paths | `/etc/ssh/ssh_known_hosts`, `/etc/ssh/ssh_known_hosts2` | locate system known_hosts sources |
 
-## Candidate directives to retain
+Paths in these directives may use `~`, TOKENS, and environment variables (per the man page, per-directive); TOKENS and environment variables resolve at connection time only, so static extraction should preserve them as written.
 
-| Directive | Completion relevance |
-|-----------|----------------------|
-| `HostName` | Effective destination target hints; may influence completion context. |
-| `User` | Suggest `user@` prefixes / defaults. |
-| `Port` | Suggest default/nonstandard ports. |
-| `IdentityFile` | Host-aware identity suggestions for `-i` / `IdentityFile`. |
-| `CertificateFile` | Host-aware certificate suggestions. |
-| `ProxyJump` | Suggest jump hosts / multi-hop targets. |
-| `ProxyCommand` | Context for proxy-related completion (static presence/value). |
-| `IdentityAgent` | Declared agent socket/path hint for agent-aware completion context. |
-| `UserKnownHostsFile` | Locate known_hosts sources per host context (when statically declared). |
-| `GlobalKnownHostsFile` | Locate system known_hosts sources per host context. |
+`IdentityFile none` disables identity loading; `ProxyJump none`/`ProxyCommand none` disable proxying; `IdentityAgent none` disables agent use.
 
-Declared known_hosts path values are preserved in per-host facts as collected. Aggregated known_hosts file lists intended for enrichment should trim whitespace, exclude empty values and case-insensitive `none`, and remain deduplicated/sorted; path/token expansion is not performed by static config indexing (callers may pass paths to known_hosts indexing helpers that expand leading `~` when a home directory is configured).
+## What static extraction can and cannot know
 
-Additional directives may be added as consumers need them, but keep scope tied to completion value.
+- ssh applies the **first matching** `Host`/`Match` section's value for each directive; later values are ignored. A static reader that associates a directive with every block mentioning the name therefore over-approximates: multiple conflicting values may be reported where ssh would use only one.
+- Whether a `Match` block applies is not statically decidable in general (`Match exec` runs commands; `canonical`/`final` passes may change results).
+- `HostName` substitution affects `Match host` matching and the effective destination.
+- Command-valued directives (`ProxyCommand`, plus `Match exec`, `KnownHostsCommand`, `LocalCommand`) must be treated as opaque strings — never executed.
 
-## Association semantics (best-effort/static)
+## Useful derived queries
 
-Defining how directives associate with hosts is critical and inherently approximate without evaluation:
+Completion tools commonly derive:
 
-- Facts may be associated with **declared blocks** (`Host`/`Match` sections) and/or exposed via **simple matching helpers**.
-- Multiple blocks/patterns may match a given name in OpenSSH with first-match-wins and conditional semantics; static extraction cannot fully reproduce effective resolution.
-- `Match`-gated blocks complicate association: the indexer does not evaluate whether a Match applies, but it can still record what directives are declared under it.
-- In a static indexer, facts may be associated to the declared host tokens active for a block (including `Match host`/`originalhost` tokens where present). This is a static convenience for completion and must not be treated as resolved/effective configuration.
-- Negated `Host` tokens (e.g. `!bad`) are declared and may receive block fact association in a static model, but they are not completable host candidates. Negated `Match host`/`originalhost` criteria are not extracted as host tokens.
-- An aggregated known_hosts-file query can be a normalized/deduped/sorted view across fact-bearing host tokens: it trims whitespace and excludes empty/case-insensitive `none`; declared per-host fact values preserve original tokens.
-
-**API/behavior must be explicit about limitations vs `ssh -G`.** Consumers should treat results as hints/suggestions derived from declarations, not authoritative resolved configuration.
-
-## No dynamic evaluation
-
-Do not:
-- expand tokens (`%h`, `%r`, `%p`, `%u`, etc.) at runtime connection context
-- evaluate `Match exec`/`command` or dynamic criteria to decide applicability
-- perform canonicalization
-- execute `ssh -G` by default
-
-An opt-in strict resolution path using `ssh -G` may be considered in some implementations, but it must never be the default completion path.
-
-## Consumer use cases
-
-- **Identity/certificate suggestions**: when completing `-i` or values related to identity, prefer files declared for the target host when known.
-- **Destination hints**: suggest `user@host` forms, default ports, or HostName-aware targets where helpful.
-- **Jump/proxy sources**: better `-J` / `ProxyJump` target suggestions from declared config.
-- **known_hosts discovery**: use declared `UserKnownHostsFile`/`GlobalKnownHostsFile` to enrich host sources.
-
-## Data model considerations
-
-- Preserve enough structure to answer "what facts are declared in blocks that mention/target X?" without claiming full resolution.
-- Keep results deterministic (stable ordering where collections are returned).
-- Consider representing values as declared strings plus parsed forms where cheap (e.g. port numbers), but avoid over-normalizing in ways that lose meaning.
-
-## Testing expectations
-
-- Extraction of listed directives from `Host` and `Match` blocks.
-- Multiple declarations, ordering as declared (if exposed), and deterministic query results.
-- Coexistence with tolerant Match parsing (facts still collected when blocks contain non-evaluable criteria, subject to defined association rules).
-- Clear tests/documentation for cases where static association is ambiguous.
+- the set of hosts that declare a given directive (e.g. hosts with `IdentityFile`),
+- the declared values per host token (pattern or literal),
+- aggregated file paths for known_hosts indexing (for `UserKnownHostsFile`/`GlobalKnownHostsFile`, trimming whitespace and skipping empty/`none` values is sensible; ssh treats `none` as disabling the file list).
 
 ## Related
 
-- [match.md](match.md) — Match blocks are parsed without evaluation.
-- [host-candidates.md](host-candidates.md) — host identity/candidate extraction.
-- [known-hosts.md](known-hosts.md) — per-host known_hosts file directives feed enrichment.
-- [integration.md](integration.md) — where completers may adopt richer actions.
+- [match.md](match.md) — Match blocks without evaluation.
+- [host-candidates.md](host-candidates.md) — host tokens.
+- [known-hosts.md](known-hosts.md) — indexing known_hosts files declared via the above directives.
+- [option-metadata.md](option-metadata.md) — keyword metadata.

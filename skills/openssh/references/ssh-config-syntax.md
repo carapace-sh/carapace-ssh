@@ -1,93 +1,77 @@
-# ssh_config Syntax and Tolerant Parsing
+# ssh_config File Syntax
 
-Parsing model for OpenSSH client configuration as needed by a completion-safe indexer. The goal is robust extraction of host/include information, not strict `ssh -G` evaluation. For Match-specific behavior see [match.md](match.md); for include graph rules see [include.md](include.md).
+Syntax of OpenSSH client configuration files per ssh_config(5).
 
-## Scope
+## File structure
 
-The parser/indexer must read and scan config text from a path (and/or reader) **without evaluating runtime conditions** and without executing external processes. Tolerate unknown keywords/criteria and malformed lines without aborting the whole file where possible.
+- The file contains directive/value pairs, one per line.
+- Lines starting with `#` and empty lines are comments/ignored.
+- `#` outside of a quoted string may be used to add a comment to the end of a line.
+- Whitespace at the beginning or end of lines is ignored.
+- **Keywords are case-insensitive; arguments are case-sensitive.**
+- A directive is separated from its value by whitespace, or by **exactly one `=` character** (which may be surrounded by whitespace). The `=` form exists so options passed via `ssh -o` need not quote whitespace.
+- Values may optionally be enclosed in double quotes (`"`) to represent arguments containing spaces.
+- OpenSSH itself does not support backslash line continuations; real-world files sometimes contain them, so tolerant parsers may treat them best-effort.
 
-## Directives (minimum set)
+## Host directive
 
-Recognize directives **case-insensitively**:
+`Host` restricts the following declarations (up to the next `Host` or `Match`) to hosts matching one of the patterns given after the keyword:
 
-| Directive | Role in completion indexing |
-|-----------|----------------------------|
-| `Host` | Introduces a block; arguments are host patterns/candidates to collect. |
-| `Match` | Introduces a conditional block; extract `host`/`originalhost` criteria as candidates; tolerate other criteria. |
-| `Include` | Pulls in additional config files/globs; must be followed and indexed (see [include.md](include.md)). |
+- Multiple patterns are separated by whitespace.
+- Patterns use glob syntax: `*` matches any sequence of characters, `?` matches any single character.
+- A pattern prefixed with `!` is negated; **if a negated entry matches, the Host entry is ignored regardless of any other patterns on the line** (negations act as exceptions to wildcard matches).
+- A single `*` provides global defaults.
+- The host matched is usually the hostname given on the command line (with exceptions when `CanonicalizeHostname` is enabled).
 
-Other keywords should be accepted/tolerated (and may be retained later for static facts, [static-facts.md](static-facts.md)) without causing parse failure.
+## Match directive
 
-## Syntax forms to tolerate
+See [match.md](match.md). `Match` introduces a conditional section; conditions are criteria on the `Match` line itself, not separate directives.
 
-OpenSSH-style config syntax is flexible. The parser should accept, at least:
+## Include directive
 
-- **Optional `=` separator**: `Host foo`, `Host=foo`, `Host = foo` (and equivalents for `Match`, `Include`).
-- **Flexible whitespace**: leading/trailing whitespace, tabs/spaces around keywords and separators.
-- **Case-insensitive keywords**: `host`, `Host`, `HOST`, etc.
-- **Comments**: `#` starts a comment (typically to end of line); do not treat commented text as directives.
-- **Blank lines**: ignored.
-- **Quoted arguments**: preserve quoted paths/arguments as needed, especially for `Include` and any value that may contain spaces. Empty quoted arguments may be meaningful for some Match criteria (e.g. `command ""`, `tagged ""`) and should be preserved when possible.
-- **Indentation variants**: directives may be indented within blocks in user configs.
-- **Line continuations**: tolerate backslash-newline continuations (including CRLF forms) on a best-effort basis; behavior near comments/quotes should remain non-fatal.
+See [include.md](include.md).
 
-## Tokenization considerations
+## Other keywords
 
-A tolerant tokenizer should aim to:
-- split directives from arguments while respecting quoting and `=` forms
-- keep enough structure to identify `Host`/`Match`/`Include` lines reliably
-- preserve original token forms where useful for raw extraction, while normalizing for keyword matching
-- allow best-effort recovery after malformed lines (continue scanning subsequent lines)
+OpenSSH supports many keywords (a few dozen, from `AddKeysToAgent` to `UpdateHostKeys`); they carry values of types such as strings, paths, integers/ports, yes/no booleans, enumerations, and command strings. Examples of completion-relevant ones: `HostName`, `User`, `Port`, `IdentityFile`, `CertificateFile`, `ProxyJump`, `ProxyCommand`, `IdentityAgent`, `UserKnownHostsFile`, `GlobalKnownHostsFile` (see [static-facts.md](static-facts.md)).
 
-Avoid assumptions that require full OpenSSH grammar fidelity unless required for the extraction goals.
+Unknown keywords cause ssh to fail with an error, unless listed in `IgnoreUnknown` (a comma-separated pattern list of option names to ignore). Tolerant completion parsers typically ignore unknown keywords instead.
 
-## Block structure (indexing view)
+## PATTERNS (per ssh_config(5))
 
-For completion indexing, `Host` and `Match` lines delimit blocks/sections. The indexer needs block awareness to:
-- associate host patterns with their declaration context (relevant for future static facts)
-- know that `Match` criteria appear on the `Match` line itself (not as nested directives like `Host` patterns are arguments)
-- continue indexing after unsupported blocks
+- A pattern is zero or more characters followed by `*` (matches any number of characters), `?` (matches exactly one character), or ordinary characters.
+- A pattern may be negated by prefixing it with `!`.
+- Several patterns may be separated by commas to form a pattern-list; matching succeeds if any (non-negated) pattern matches and no negated pattern matches.
+- Wildcards and negation appear in `Host` arguments, `Match` criteria values, `known_hosts` host fields, and various pattern-list options (e.g. `SendEnv`).
 
-Do not implement runtime condition evaluation; "block applies" is irrelevant to collecting declared candidates safely.
+## TOKENS (per ssh_config(5))
 
-## Candidate extraction touchpoints
+Arguments of some directives (those that mention "accept the tokens") expand the following before use; they are only meaningful at connection time:
 
-- **`Host` arguments**: collect literal names/pattern tokens (filtering rules in [host-candidates.md](host-candidates.md)).
-- **`Match` arguments**: scan criteria for `host` and `originalhost` and collect their value tokens/lists; skip/tolerate other criteria (see [match.md](match.md)).
-- **`Include` arguments**: resolve and index included files (see [include.md](include.md)).
+| Token | Meaning |
+|-------|---------|
+| `%%` | literal `%` |
+| `%C` | hash of `%l%h%p%r%j` |
+| `%d` | local user's home directory |
+| `%f` | fingerprint of the server host key |
+| `%h` | remote hostname |
+| `%I` | key identity of the server host key |
+| `%i` | local user's uid |
+| `%j` | jump host (empty if none) |
+| `%K` | base64-encoded server host key |
+| `%k` | server host key |
+| `%L` / `%l` | local hostname |
+| `%n` | original command-line hostname |
+| `%p` | remote port |
+| `%r` | remote username |
+| `%T` / `%t` | target tun device / local tun device |
+| `%u` | local username |
 
-## Error handling / tolerance
-
-| Situation | Expected behavior |
-|-----------|-------------------|
-| Unknown keyword | Do not abort file; ignore or record as opaque as needed. |
-| Unknown Match criterion | Do not abort; skip criterion/args best-effort so later `host`/`originalhost` can still be found. |
-| Malformed/unparseable line | Best-effort: skip/recover and continue where possible. |
-| Binary/odd bytes | Do not crash; prefer tolerant handling over strict rejection. |
-| Unreadable/missing include target | Non-fatal; continue with rest of graph. |
-| Mixed/odd formatting | Prefer extraction over strict rejection. |
-
-## Edge cases to plan for
-
-- Line continuations (backslash-newline) — handle best-effort if encountered; document behavior.
-- `Match`/`Host` constructs in unusual positions (invalid but seen in the wild) — best-effort.
-- `=` attached to keyword vs value in different forms.
-- Comments adjacent to quoted values.
-- Locale/encoding oddities — avoid crashing on unexpected bytes; prefer byte/string handling consistent with host/path usage.
-
-## Separation from evaluation
-
-This parser is for **indexing/extraction**. It must not:
-- expand connection-time tokens (`%h`, `%r`, `%p`, etc.)
-- perform canonicalization
-- evaluate `Match exec`, `Match command`, or dynamic/network/user-state criteria
-- claim `ssh -G` parity
-
-Strict evaluation, if ever added, belongs in a separate opt-in layer (see [overview.md](overview.md)).
+Static extraction should preserve these tokens as written rather than expanding them (their values depend on the connection context).
 
 ## Related
 
-- [match.md](match.md) — criteria grammar, arity, and non-execution rules.
-- [include.md](include.md) — include argument/path resolution.
-- [host-candidates.md](host-candidates.md) — what becomes a completable host.
-- [testing.md](testing.md) — syntax/formatting regression coverage.
+- [match.md](match.md) — Match criteria grammar.
+- [include.md](include.md) — Include semantics.
+- [host-candidates.md](host-candidates.md) — which host tokens become completions.
+- [overview.md](overview.md) — sources, precedence, safety.

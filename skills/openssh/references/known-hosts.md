@@ -1,74 +1,63 @@
-# known_hosts Parsing and Host Enrichment
+# known_hosts Files
 
-Support for enriching completable hosts from OpenSSH `known_hosts` files. This extends host sources beyond ssh_config declarations.
+Format and semantics of OpenSSH `known_hosts` files per ssh(1)/ssh-keygen(1).
 
-## Goal
+## Purpose
 
-A known_hosts parser/indexer can expose completable host candidates and merge/dedup helpers for combining them with config-declared hosts without side effects. It should support configurable/default path discovery and tolerant, non-fatal handling of missing/unreadable files.
+`known_hosts` files store host keys for host authentication, and (as a side effect) list host names previously connected to. This makes them a useful host source for completion, complementing ssh_config declarations.
 
-## Line forms to handle
+## File locations and configuration
 
-| Form / element | Notes |
-|----------------|------|
-| **Plain host lists** | Comma-separated hostnames/patterns in the host field. |
-| **Bracketed `[host]:port`** | Non-default port notation; extract the host portion for hostname completion (e.g. `[example.com]:2222` -> `example.com`, `[2001:db8::1]:2222` -> `2001:db8::1`). Port-aware forms are a consumer concern. |
-| **Wildcard/negated markers** | Recognize as syntax (e.g. `*`, `?`, `!` patterns) for parsing; completable output should follow filtering rules (patterns/negations typically not literal completions). |
-| **Markers** | `@cert-authority`, `@revoked` prefixes — parse/tolerate. **`@revoked` entries must not be suggested** for completion. `@cert-authority` entries may contain scope patterns and/or explicit literal host tokens; only literal, non-wildcard, non-negated, non-hashed tokens should be considered completable (policy must be explicit). |
-| **Hashed host entries** | Cannot be reversed; **skip/ignore hashed hosts for completion** but parse without error. |
-| **Comments / blank lines** | Tolerate and ignore. |
+| Directive | Default |
+|-----------|---------|
+| `UserKnownHostsFile` | `~/.ssh/known_hosts`, `~/.ssh/known_hosts2` |
+| `GlobalKnownHostsFile` | `/etc/ssh/ssh_known_hosts`, `/etc/ssh/ssh_known_hosts2` |
 
-Field structure (hostnames, key type, key, optional comment) should be parsed robustly enough to identify the host field even when later fields vary.
+- `HashKnownHosts` controls whether ssh hashes host names on write (distributions often default to yes in their configs; OpenSSH's own default is no).
+- `CheckHostIP yes` additionally records the host's IP address in `~/.ssh/known_hosts`.
+- `ssh-keygen -F hostname` finds entries; `ssh-keygen -R hostname` removes them (including hashed entries when given the hostname).
 
-## Markers and hashed hosts
+## Line format
 
-- **`@revoked`**: revoked host keys must never be accepted/suggested. Exclude revoked entries from completable host candidates.
-- **`@cert-authority`**: parse/tolerate; explicit literal host tokens in the host field may be completable, but wildcard/negated/hashed tokens are not. Be explicit about this policy in tests/consumers.
-- **Hashed hostnames** (e.g. `|1|...`) are one-way: do not reverse them, exclude from completion, and continue parsing.
+Each line: `[markers] hostnames keytype base64-encoded-key [comment]`
 
-## Default and configured locations
+| Element | Notes |
+|---------|-------|
+| **markers** | Optional prefixes: `@cert-authority` and `@revoked` |
+| **hostnames** | Comma-separated list of PATTERNS (may be negated with `!`, may be hashed) |
+| **keytype, key, comment** | Public key material; identify the line's structure |
 
-APIs should support:
-- listing completable hostnames/ports from **given files** (path-based indexing helpers may expand a leading `~` using the configured home directory)
-- listing from **default locations**: `~/.ssh/known_hosts`, `/etc/ssh/ssh_known_hosts`
-- integration with config-derived paths when available: `UserKnownHostsFile`, `GlobalKnownHostsFile`
+### Hostname field forms
 
-Keep path discovery explicit/configurable; avoid hidden global state (consistent with [defaults.md](defaults.md)). OpenSSH token expansion (`%h`, `%u`, etc.) is not performed.
+- **Plain literals**: `example.com`, `192.0.2.1`, `2001:db8::1`.
+- **Bracketed port form**: non-standard ports are stored as `[host]:port`, e.g. `[example.com]:2222`; IPv6 appears as `[2001:db8::1]:2222` (brackets retained, even for IPv6).
+- **Patterns**: `*`, `?` wildcards and `!` negation may appear (e.g. `*.example.com`), often in `@cert-authority` scope.
+- **Hashed entries**: `|1|salt|hash` — one-way hashes of hostnames. They cannot be reversed; ssh matches them by hashing the queried name. Unknown to a static reader except as opaque tokens.
 
-## Merge and dedup
+### Markers
 
-Provide helpers to combine:
-- config-declared hosts (from ssh_config index)
-- known_hosts-derived hosts
+- `@cert-authority`: the line's key is trusted as a certification authority for the hosts in the hostname field (which usually contain patterns).
+- `@revoked`: the key is revoked and must never be accepted. Revoked lines should not contribute host candidates.
 
-Consider:
-- deduplication across sources
-- deterministic ordering
-- optional source metadata (e.g. where a host came from) if useful to consumers, without complicating the simple API
-- port handling: whether to emit `host`, `[host]:port`, or both forms depends on consumer needs (document). A reasonable policy: completable host extraction emits the host portion only (stripping brackets/ports); bracketed IPv6 hosts are returned as raw IPv6 literals. This matches config host candidates, where raw IPv6 literals may be completable but bracketed `[host]:port` tokens are not literal completion candidates. Consumers can use destination/target helpers when they need bracketed/port-qualified display or connection strings.
-- config-declared `UserKnownHostsFile`/`GlobalKnownHostsFile` paths (aggregated via config index helpers, trimming whitespace and excluding empty/`none`) can be indexed by callers for enrichment. A helper for indexing such paths may trim whitespace, ignore empty/`none` values, and expand a leading `~` when home is configured. Config indexing returns declared paths as-is (no token expansion); OpenSSH token expansion is not performed.
+## Completable candidates
 
-## Safety and tolerance
+Reasonable extraction policies:
 
-- No process execution, no network access.
-- Unreadable/missing known_hosts files should be non-fatal in best-effort enrichment scenarios.
-- Malformed lines should not abort parsing the entire file where recoverable.
+- **Include** plain literal host tokens (and raw IPv6 literals).
+- **Exclude** hashed entries (irreversible), negated tokens, wildcard patterns, and `@revoked` lines.
+- **`@cert-authority`** lines: their hostname field may be entirely pattern-based; only explicit literal tokens are candidates, if at all.
+- Bracketed `[host]:port` entries yield the host portion for hostname completion; reattaching a port is a display/connection-string concern (e.g. for tools that support `user@host -p port` or `[host]:port` destination forms).
+- Duplicate names across files/sources should be deduplicated with deterministic ordering.
 
-## Consumer use cases
+## Tolerance notes
 
-- `ssh`, `scp`, `sftp` target completion enriched with previously seen hosts.
-- Tools like `ssh-keygen -F|-R` that operate on known hostnames.
-
-## Testing expectations
-
-- Plain and comma-separated host lists.
-- `[host]:port` and `[ipv6]:port` forms (including raw IPv6 extraction from bracketed entries).
-- `@cert-authority` / `@revoked` marker lines (revoked excluded; CA literal-token policy explicit).
-- Hashed hosts ignored for completion but parsed safely.
-- Wildcard/negated host tokens handled per filtering policy, including mixed comma-separated lists.
-- Merge/dedup with config hosts; deterministic output.
+- Files may contain comments, blank lines, malformed lines, unknown key types; tolerate and skip what cannot be understood rather than aborting the file.
+- Unreadable/missing files are common; treat as non-fatal.
+- `UserKnownHostsFile`/`GlobalKnownHostsFile` values may name additional files (whitespace-separated); they may reference `~` but TOKENS (e.g. `%h`) only expand at connection time.
 
 ## Related
 
-- [host-candidates.md](host-candidates.md) — config-sourced candidates and filtering/determinism rules.
-- [defaults.md](defaults.md) — explicit/configurable source modeling.
+- [ssh-config-syntax.md](ssh-config-syntax.md) — PATTERNS operators.
+- [host-candidates.md](host-candidates.md) — merging with config-declared hosts and filtering policies.
 - [static-facts.md](static-facts.md) — `UserKnownHostsFile`/`GlobalKnownHostsFile` extraction.
+- [defaults.md](defaults.md) — default file locations.

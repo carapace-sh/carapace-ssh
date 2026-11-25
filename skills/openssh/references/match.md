@@ -1,97 +1,79 @@
-# Match Handling (Completion-Safe)
+# Match Directive
 
-How to parse `Match` directives for host-candidate extraction without evaluating runtime conditions or executing commands.
+Semantics of `Match` blocks per ssh_config(5), and what is relevant when extracting data from them statically.
 
-## Core rule: never execute
+## Definition
 
-The indexer/parser **must never execute**:
-- `Match exec ...`
-- `Match command ...`
-- any external process or shell command implied by Match criteria
+`Match` restricts the following declarations (up to the next `Host` or `Match`) to when the conditions following the keyword are satisfied. Conditions are specified using one or more criteria, or the single token `all` which always matches.
 
-It also must not require runtime connection context (current user, network, resolved hostname, canonicalization state, etc.). Parsing is static and completion-safe by default.
+**The available criteria are: `canonical`, `final`, `exec`, `localnetwork`, `host`, `originalhost`, `tagged`, `command`, `user`, `localuser`, `version`, and `sessiontype`.**
 
-## What to extract
+- `all` must appear alone or immediately after `canonical` or `final`.
+- Other criteria may be combined arbitrarily.
+- **All criteria except `all`, `canonical`, and `final` require an argument.**
+- Criteria may be negated by prepending `!` (e.g. `Match !user root`).
+- Criteria accept the same separator forms as directives (`Match host=example.com` and `Match host example.com`).
 
-Collect literal host candidates from `Match` criteria:
-- `host` — match against the target hostname as given
-- `originalhost` — match against the original hostname as specified on the command line
+## Criteria reference
 
-Include comma-separated lists. Do **not** extract hosts from negated `host`/`originalhost` criteria (e.g. `!host bad.example`); their arguments/values are still consumed for alignment when parsing the criterion form. Extraction is static/best-effort and must not rely on runtime evaluation.
+| Criterion | Argument | Semantics |
+|-----------|----------|-----------|
+| `canonical` | none | matches only during the re-parse after hostname canonicalization (`CanonicalizeHostname`) |
+| `final` | none | requests a final re-parse of the configuration and matches only during that pass; with `CanonicalizeHostname` enabled, `canonical` and `final` match during the same pass |
+| `exec` | command text (quoted if it contains spaces) | **executes the command under the user's shell** (`SHELL` from the environment); zero exit status = condition true; arguments accept TOKENS |
+| `localnetwork` | CIDR network list | matches addresses of active local network interfaces |
+| `host` | pattern-list (single entry or comma-separated) | matches the target hostname, **after** substitution by `Hostname` or `CanonicalizeHostname` |
+| `originalhost` | pattern-list | matches the hostname as specified on the command line |
+| `tagged` | pattern-list | matches a tag from a prior `Tag` directive or `ssh -P`; the empty string matches the case where no tag is specified (`Match tagged ""`) |
+| `command` | pattern-list | matches the requested remote command or subsystem name (e.g. `sftp`); the empty string matches the case where no command was requested |
+| `user` | pattern-list | matches the target username on the remote host |
+| `localuser` | pattern-list | matches the name of the local user running ssh (useful in system-wide configs) |
+| `version` | pattern-list | matches the ssh client version string, e.g. `OpenSSH_10.0` |
+| `sessiontype` | one of `shell`, `exec`, `subsystem`, `none` | matches the requested session type (`-N` corresponds to `none`) |
 
-## Behavioral requirements (tolerant, non-executing)
+Pattern-lists use the PATTERNS operators (wildcards `*`/`?` and negation `!`); see [ssh-config-syntax.md](ssh-config-syntax.md).
 
-| Requirement | Detail |
-|-------------|--------|
-| **No execution** | Never run `exec`/`command` or any external process. Treat `exec` as opaque/rest-of-criterion text and stop host extraction for that `Match` line to avoid misparsing; `command` takes a value argument (possibly empty/quoted) and must also never be executed (consume it for alignment). |
-| **Zero-arg criteria** | Parse/skip known zero-arg criteria such as `all`, `canonical`, `final` (and `canonical all` forms as encountered). |
-| **Argument-consuming criteria** | Parse/skip criteria that consume arguments so token alignment is preserved well enough to still find `host`/`originalhost` in the same `Match` line when safe. |
-| **Unknown criteria/keywords** | Must not abort parsing of the file or prevent host extraction elsewhere. Fall back safely (conservative skipping/alignment). |
-| **Host extraction survives gating** | Hosts declared in blocks gated by non-evaluable/unsupported criteria must still be discoverable as declared candidates where applicable to extraction goals (especially `Match host|originalhost` values themselves). |
+Note: sshd_config(5) has a **different** Match criteria set (`user`, `group`, `host`, `address`, `localaddress`, `localport`, `ruser`, `rdomain`, `all`); do not mix the two lists up when working with client configuration.
 
-## Known criteria to account for
+## OpenSSH versions
 
-Tolerant handling commonly needs to account for criteria including:
-- `exec` (command text; **never execute**, opaque; stop extraction on this criterion for the line)
-- `command` (requested command/subsystem pattern argument; **never execute**; value arg, may be empty/quoted)
-- `host`, `originalhost` (**extract when not negated**, e.g. `!host ...` is skipped)
-- `user`, `group`, `localuser`, `localgroup`
-- `localnetwork`
-- `tagged`
-- `sessiontype`
-- `version`
-- `all`, `canonical`, `final` (zero-arg / standalone forms)
-- connection/context criteria such as `address`, `localaddress`, `ruser`, `rdomain`, `localport`, `remoteport` (consume arguments when known)
+Criteria have been added over time (`tagged`, `sessiontype`, `version`, `command`, `localnetwork` are among the newest). Parsers should treat unknown criteria tolerantly rather than erroring.
 
-For completion-safe parsing, treat documented value-arg criteria as consuming a single argument (including `criterion=value`, spaced `=`, and empty quoted forms) unless a criterion is explicitly command-like (`exec` rest/opaque stop behavior; `command` value arg, never executed).
+## Static extraction considerations
 
-This list is not exhaustive; unknown criteria must be handled without aborting.
+- `exec` runs arbitrary commands; extraction must never execute it. Its argument extends to the criteria's value (quoted text) — treat it as opaque data. Note that because `exec` accepts free-form command text, token alignment for criteria after it on the same line is inherently ambiguous; conservative parsers stop extracting on that criterion.
+- `host` and `originalhost` values are the natural source of host candidates: extract their pattern-lists unless the criterion (or individual value) is negated.
+- Zero-argument criteria (`all`, `canonical`, `final`) consume nothing; value criteria consume one argument each (with `criterion=value` and spaced forms).
+- Whether a `Match` block would actually apply at connection time is not statically decidable in general; extraction of declared tokens is a best-effort over-approximation, not a resolution.
 
-## Token alignment and argument arity
-
-Match criteria vary in arity and form. Tolerant skipping should recover `host`/`originalhost` where practical without executing anything.
-
-Practical guidance:
-- Use explicit criterion metadata when available (zero-arg, single-value, and rest-of-line argument kinds).
-- Support `criterion=value`, `criterion = value`, and spaced forms. Preserve empty quoted argument tokens where relevant (e.g. `command ""`, `tagged ""`).
-- When arity is unknown, prefer conservative skipping that avoids dropping later identifiable `host`/`originalhost` criteria when possible; never guess in a way that causes execution.
-- A defensible policy: `exec` stops further host extraction for the same `Match` line (opaque). `command` is aligned as a value argument. Document whichever policy is chosen.
-
-## Negation and lists
-
-- Criteria may be negated with `!` (e.g. `!host ...`). Do not extract host candidates from negated `host`/`originalhost` criteria.
-- Names may be comma-separated.
-- Extracted forms are then subject to completable filtering separately (see [host-candidates.md](host-candidates.md)).
-
-## Examples (conceptual)
+## Examples
 
 ```sshconfig
-# Must not execute; still index other declared hosts in file
-Match exec "test -f /tmp/marker"
-    Host internal-only
+Match all
+    # always applies
 
-# Must extract host candidates from criteria
+Match canonical all
+    # applies during canonicalized re-parse
+
 Match originalhost bastion,*.example.com
     HostName 10.0.0.1
 
 Match host prod-*,!prod-db user alice
     User deploy
 
-# Zero-arg / combined / other criteria must be tolerated
-Match all
-Match canonical all
-Match localnetwork 10.0.0.0/8 user bob tagged deploy
+Match exec "test -f /tmp/marker"
+    # executes a shell command; never do this during extraction
+
+Match tagged "" user deploy
+    # empty tag means "no tag specified"
+
+Match sessiontype none
+    # transport-only sessions (-N)
 ```
-
-(Examples illustrate extraction/tolerance intent; exact candidate filtering follows the consumer's documented rules.)
-
-## Safety tests
-
-Configs containing `Match exec "..."` must not create side effects. Tests should verify observable absence (e.g. temp marker file not created). See [testing.md](testing.md).
 
 ## Related
 
-- [ssh-config-syntax.md](ssh-config-syntax.md) — directive recognition and line parsing.
-- [host-candidates.md](host-candidates.md) — candidate filtering, dedupe, sorting.
-- [option-metadata.md](option-metadata.md) — Match criterion metadata for better skipping.
-- [overview.md](overview.md) — non-goals and guarantees.
+- [ssh-config-syntax.md](ssh-config-syntax.md) — PATTERNS and TOKENS.
+- [host-candidates.md](host-candidates.md) — host token extraction and filtering.
+- [option-metadata.md](option-metadata.md) — criterion arity metadata.
+- [overview.md](overview.md) — sources, precedence, safety.
