@@ -1,19 +1,23 @@
 ---
 name: openssh
 description: >
-  Use when working with OpenSSH client configuration for shell completion: ssh_config parsing
-  and indexing, Host/Match extraction, Match host/originalhost handling, Match exec/command
-  safety, Include resolution, -F and default config discovery, host candidates, known_hosts,
-  static per-host facts, and option/keyword metadata. Triggers on: "OpenSSH", "openssh",
-  "ssh_config", "Host", "Match", "Match exec", "Match host", "Match originalhost", "Include",
-  "-F", "known_hosts", "HostName", "User", "Port", "ProxyJump", "IdentityFile",
-  "UserKnownHostsFile", "GlobalKnownHostsFile", "host candidates", "completion-safe".
+  Use when working with OpenSSH client configuration and related data: ssh_config syntax
+  and semantics (per ssh_config(5)), Host/Match blocks, PATTERNS and TOKENS, Match criteria
+  (canonical, final, exec, host, originalhost, user, localuser, localnetwork, tagged,
+  command, version, sessiontype), Include directives, configuration file discovery and
+  precedence (-F, -G, user/system configs, ssh_config.d), known_hosts file format
+  (markers, bracketed host:port, hashed entries), host-specific directives (HostName, User,
+  Port, ProxyJump, IdentityFile, UserKnownHostsFile), and considerations for implementing
+  shell completion over these sources. Triggers on: "OpenSSH", "openssh", "ssh_config",
+  "Host", "Match", "Include", "-F", "-G", "ssh -G", "known_hosts", "PATTERNS", "TOKENS",
+  "HostName", "User", "Port", "ProxyJump", "IdentityFile", "UserKnownHostsFile",
+  "GlobalKnownHostsFile", "ssh-keygen -F", "ssh-keygen -R", "completion-safe".
 user-invocable: true
 ---
 
-# OpenSSH Completion Knowledge Base
+# OpenSSH Client Configuration Knowledge Base
 
-Reference for implementing completion-safe, tolerant handling of OpenSSH client configuration. Focused on extracting useful completion data from `ssh_config`, `known_hosts`, and related sources without executing commands or requiring runtime connection evaluation.
+Factual reference for OpenSSH client configuration and host-key data, aimed at tools that extract completion information from `ssh_config` and `known_hosts` without evaluating runtime conditions.
 
 ## Sub-Resources
 
@@ -21,34 +25,30 @@ Load the reference that matches your task. When in doubt, load multiple referenc
 
 | Keywords | Reference |
 |----------|----------|
-| scope, goals, non-goals, completion-safe guarantees, tolerant parsing, deterministic results, separation of concerns | [references/overview.md](references/overview.md) |
-| ssh_config syntax, tokenizer, parser, directives, Host, Match, Include, case-insensitive keywords, quoting, = separator, comments, whitespace, line continuation, tolerant parsing | [references/ssh-config-syntax.md](references/ssh-config-syntax.md) |
-| Match, criteria, host, originalhost, exec, command, all, canonical, final, user, localnetwork, negation, comma-separated, token arity, no process execution, tolerant skipping | [references/match.md](references/match.md) |
-| Include, glob, recursion, cycle detection, base dir, relative paths, ~ expansion, quoted paths, missing files, unreadable includes, including-file context | [references/include.md](references/include.md) |
-| config sources, defaults, user config, system config, ~/.ssh/config, /etc/ssh/ssh_config, -F, custom path isolation, ssh_config.d, drop-ins | [references/defaults.md](references/defaults.md) |
-| host candidates, declared hosts, Host arguments, Match host/originalhost extraction, wildcard filtering, negated names, dedupe, sort, deterministic output | [references/host-candidates.md](references/host-candidates.md) |
-| known_hosts, hashed hosts, bracketed host:port, @cert-authority, @revoked, UserKnownHostsFile, GlobalKnownHostsFile, enrichment, merge, dedup, host sources | [references/known-hosts.md](references/known-hosts.md) |
-| static facts, per-host directives, HostName, User, Port, IdentityFile, CertificateFile, ProxyJump, ProxyCommand, IdentityAgent, best-effort association, ssh -G limitations | [references/static-facts.md](references/static-facts.md) |
-| option metadata, keywords, aliases, deprecated options, value types, enums, Match criterion metadata, argument arity, option/value completion | [references/option-metadata.md](references/option-metadata.md) |
-| completer integration, host actions, ssh/scp/sftp consumers, -F flag propagation, contract stability, behavior regressions | [references/integration.md](references/integration.md) |
-| testing, testdata fixtures, table-driven tests, safety tests, Match exec side effects, fuzzing, integration tests, regression cases, golden cases | [references/testing.md](references/testing.md) |
+| configuration sources and precedence, command line / user / system, first-value-wins, `-F`, `-G`, ssh_config.d drop-ins | [references/overview.md](references/overview.md) and [references/defaults.md](references/defaults.md) |
+| ssh_config file syntax, directive/value pairs, case-insensitivity, `=` separator, quoting, comments, PATTERNS, TOKENS, IgnoreUnknown | [references/ssh-config-syntax.md](references/ssh-config-syntax.md) |
+| Match blocks, criteria list and argument arity, exec/host/originalhost/user/tagged/command/version/sessiontype, negation, canonical/final re-parse passes | [references/match.md](references/match.md) |
+| Include directive, glob order, relative path contexts (`~/.ssh` vs `/etc/ssh`), conditional inclusion, tokens in paths | [references/include.md](references/include.md) |
+| `Host` block arguments, `Match host`/`originalhost` values, pattern vs literal tokens, wildcards and negation, candidate filtering | [references/host-candidates.md](references/host-candidates.md) |
+| known_hosts file format, markers `@cert-authority`/`@revoked`, bracketed `[host]:port`, hashed `|1|` entries, default file locations, ssh-keygen `-F`/`-R` | [references/known-hosts.md](references/known-hosts.md) |
+| host-specific directives (HostName, User, Port, IdentityFile, CertificateFile, ProxyJump, ProxyCommand, IdentityAgent, UserKnownHostsFile, GlobalKnownHostsFile) and their defaults | [references/static-facts.md](references/static-facts.md) |
+| keyword vocabulary, argument types, deprecated aliases, Match criterion arity metadata | [references/option-metadata.md](references/option-metadata.md) |
+| wiring OpenSSH-derived data into completers, `-F` propagation, behavioral expectations | [references/integration.md](references/integration.md) |
+| testing approaches for tolerant extraction, safety (never executing commands), regression coverage | [references/testing.md](references/testing.md) |
 
 ## Quick Guide
 
-- **What guarantees should OpenSSH completion parsing provide?** → [references/overview.md](references/overview.md)
-- **How should ssh_config be tokenized/parsed tolerantly?** → [references/ssh-config-syntax.md](references/ssh-config-syntax.md)
-- **How do I extract hosts from `Match` without executing commands?** → [references/match.md](references/match.md) and [references/host-candidates.md](references/host-candidates.md)
-- **How should `Include` resolution, globs, and cycles work?** → [references/include.md](references/include.md)
-- **How do `-F`, user config, and system config interact?** → [references/defaults.md](references/defaults.md)
-- **Which host tokens are completable and how are they filtered/deduped?** → [references/host-candidates.md](references/host-candidates.md)
-- **How should `known_hosts` be parsed and merged?** → [references/known-hosts.md](references/known-hosts.md)
-- **What per-host facts can be exposed without `ssh -G`?** → [references/static-facts.md](references/static-facts.md)
-- **How should option/Match metadata be modeled?** → [references/option-metadata.md](references/option-metadata.md)
-- **How should host/config logic integrate into completers?** → [references/integration.md](references/integration.md)
-- **What tests prove completion-safety and tolerance?** → [references/testing.md](references/testing.md)
+- **Where does ssh(1) read configuration from, and which value wins?** → [references/overview.md](references/overview.md) and [references/defaults.md](references/defaults.md)
+- **What syntax does ssh_config allow (quotes, `=`, case, comments)?** → [references/ssh-config-syntax.md](references/ssh-config-syntax.md)
+- **What Match criteria exist and what do they consume?** → [references/match.md](references/match.md)
+- **How does `Include` resolve relative paths and globs?** → [references/include.md](references/include.md)
+- **Which host tokens can be offered as completions?** → [references/host-candidates.md](references/host-candidates.md)
+- **What is the known_hosts format and which entries are usable?** → [references/known-hosts.md](references/known-hosts.md)
+- **Which directives declare per-host facts and what are their defaults?** → [references/static-facts.md](references/static-facts.md)
+- **How do completers use this data safely?** → [references/integration.md](references/integration.md)
 
 ## Scope Notes
 
-- This skill covers OpenSSH config and host-source semantics for completion.
-- It does not replace OpenSSH's full runtime evaluator: `ssh -G` parity, canonicalization, token expansion, and dynamic Match evaluation are out of scope for default completion paths.
-- Completion-safe behavior means never executing `Match exec`/`Match command` or any external process, and never requiring network access.
+- This skill describes OpenSSH itself (man-page-level facts) plus general considerations for extracting completion data from it.
+- It does not describe any specific library's API or internal design decisions.
+- Anything requiring runtime evaluation (effective configuration) belongs to `ssh -G`, which is an external evaluator and may touch the network; static extraction must not execute commands or access the network.

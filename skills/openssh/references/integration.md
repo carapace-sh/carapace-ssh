@@ -1,70 +1,34 @@
-# Completer Integration
+# Integration into Completers
 
-Guidance for integrating completion-safe OpenSSH config/host data into shell completers and related tools.
-
-## Integration goals
-
-- Provide consistent host suggestions for `ssh`, `scp`, `sftp`, and other tools that accept SSH destinations.
-- Centralize config parsing, include resolution, and host-source merging to avoid parallel ad-hoc parsers with divergent behavior.
-- Preserve a stable, documented contract for consumers (inputs, defaults, isolation, output shape).
+Guidance for using OpenSSH configuration knowledge in shell completers for `ssh`, `scp`, `sftp`, and related tools.
 
 ## Common integration points
 
-### Host suggestion action/helper
+- **Destination/positional completion** for `ssh`/`scp`/`sftp`: host suggestions from ssh_config declarations and known_hosts entries.
+- **`-F` / config selection**: flags that select an explicit configuration file should influence host discovery the same way `ssh -F` does: use only that file plus its includes, without merging system/user defaults.
+- **User completion** (`user@host` prefix): `User` directives and command-line patterns can hint at usernames.
+- **Identity completion** (`-i`): `IdentityFile`/`CertificateFile` declarations per host.
+- **Jump host completion** (`-J` / `ProxyJump`): declared jump hosts; `ProxyJump` values are comma-separated chains of `[user@]host[:port]`.
+- **Option/value completion**: keyword and criterion metadata (see [option-metadata.md](option-metadata.md)).
+- **Destination forms**: ssh destinations are `[user@]hostname[:port]` (ssh), scp/sftp remote specs (`user@host:path`), and ssh URIs; port-qualified forms use `[host]:port` notation (brackets retained for IPv6).
 
-A typical integration exposes a host-suggestion function that:
-- accepts an optional explicit config path (for `-F`-style behavior)
-- returns filtered, completable host candidates
-- uses deterministic ordering and deduplication
-- remains completion-safe (no process execution, no network access)
+## Behavioral expectations
 
-Consumers (destination completers, option/value completers, macros) should delegate host discovery to this shared logic rather than reimplementing ssh_config scanning.
+- **No side effects**: parsing config or known_hosts files must never execute commands (`Match exec`, `ProxyCommand`, `KnownHostsCommand`, ...) or access the network; these values expand/run at connection time only.
+- **Deterministic output**: deduplicate and sort suggestions; completion is invoked on every keystroke.
+- **Tolerance**: real-world configs contain unknown keywords, malformed lines, missing includes, and unreadable files; ssh itself errors on unknown keywords, but completers typically skip and continue.
+- **Over-approximation is acceptable**: static extraction cannot know whether a `Match` block applies; surfacing its declared hosts is usually preferable to missing them.
+- **Documented limitations**: static facts are hints, not `ssh -G`-resolved configuration; say so in tool documentation where relevant.
 
-### Completers that consume host data
+## Sharing implementation
 
-- Destination/positional completers for `ssh`, `scp`, `sftp`.
-- Jump/proxy target completers (for `-J` / `ProxyJump` contexts) where host suggestions are appropriate.
-- Tools that operate on known hosts or configured hosts, when they share the same discovery semantics.
-
-Ensure flags that select an explicit config file are propagated to host discovery consistently.
-
-## Behavioral contract
-
-- **Explicit config isolation**: when a specific config file is provided, index only that entry (plus its includes) unless the caller explicitly requests merged/default behavior. Do not implicitly leak user/system defaults.
-- **Default discovery**: when no explicit config is provided, use clearly defined and configurable default entry points (for example user and system configs, and any supported drop-ins).
-- **Completion-safe**: never execute `Match exec`/`Match command` or any external process; no network access.
-- **Deterministic output**: filtered, deduplicated, and stably ordered candidates as appropriate for UI/completion stability.
-- **Tolerant behavior**: unreadable includes, unknown directives/criteria, or malformed lines should not prevent returning recoverable results from the rest of the config graph.
-- **Intentional improvements**: better extraction from previously unsupported or poorly handled configs (for example hosts declared around non-evaluable `Match` criteria) may change suggestions; document such behavior as compatibility improvements when relevant.
-
-## Extended integration patterns
-
-As additional data sources become available, consumers may adopt:
-
-- **known_hosts enrichment** for previously seen targets (with hashed-host limitations understood).
-- **Static per-host facts** for host-aware identity/certificate, user, port, or jump suggestions (best-effort hints, not `ssh -G` resolution).
-- **Option/keyword and Match metadata** to drive or validate option/value completion.
-- **Destination/path helpers** for consistent handling of `user@host`, `[host]:port`, scp/sftp remote forms, URIs, and jump specifications.
-
-## Testing considerations
-
-- Verify host suggestions for explicit config paths and default discovery modes.
-- Cover `-F` propagation and isolation in consumer-facing behavior.
-- Include regression cases where hosts appear in configs with non-evaluable `Match` criteria (`exec`, `command`, `user`, `originalhost`, etc.).
-- Assert no side effects during completion (especially for `Match exec`/`Match command`).
-- Keep source-level parsing tests as the primary guarantee; integration tests should confirm contract stability and wiring.
-
-## Migration and consistency notes
-
-- Treat a shared implementation as the canonical host-discovery logic to prevent behavior drift.
-- Keep consumer integrations narrow (depend on documented APIs/contracts) to ease evolution.
-- When changing default discovery or filtering rules, make changes deliberate, configurable where needed, and well-tested to avoid surprising environment-specific regressions.
+- Use one shared host-discovery implementation across tools to avoid divergent behavior between `ssh`/`scp`/`sftp` completers.
+- Keep integrations narrow (depend on stable outputs) so extraction rules can evolve.
 
 ## Related
 
-- [defaults.md](defaults.md) — source modes and explicit-config isolation.
-- [host-candidates.md](host-candidates.md) — candidate extraction and filtering.
-- [known-hosts.md](known-hosts.md) — host-source enrichment.
-- [static-facts.md](static-facts.md) — best-effort directive hints.
-- [option-metadata.md](option-metadata.md) — option and Match metadata reuse.
-- [testing.md](testing.md) — regression and safety coverage.
+- [defaults.md](defaults.md) — `-F` and default discovery semantics.
+- [host-candidates.md](host-candidates.md) — candidate extraction.
+- [known-hosts.md](known-hosts.md) — known_hosts enrichment.
+- [static-facts.md](static-facts.md) — per-host facts.
+- [testing.md](testing.md) — safety and regression coverage.

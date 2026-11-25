@@ -1,106 +1,50 @@
-# Config Sources and Default Discovery
+# Configuration File Discovery
 
-How to model explicit config paths (`-F`) versus default user/system configuration, and how those choices affect include resolution and host results.
+Which files ssh(1) reads and how `-F`, default discovery, and drop-in directories interact. Facts per ssh(1)/ssh_config(5), plus commonly observed distro conventions.
 
-## Design principle: explicit context
+## ssh(1) defaults
 
-Callers control/provide config path(s), base directories, and system/user roots; no hidden global state. Defaults are opt-in helpers. This keeps behavior testable and avoids surprising completion results.
+- User configuration: `~/.ssh/config`
+- System-wide configuration: `/etc/ssh/ssh_config`
+- Precedence: command-line options, then user config, then system config; **first obtained value for each directive wins**.
 
-## Entry modes
+## `ssh -F configfile`
 
-### Explicit config path (`-F` / custom path)
+- Specifies an alternative per-user configuration file.
+- When a configuration file is given on the command line, **the system-wide configuration file is ignored**.
+- The given file's `Include` directives still apply (resolved relative to the user context, i.e. `~/.ssh`).
 
-When the caller specifies an explicit config file (as `ssh -F` / completer `-F` implies):
+For completion tools that mirror ssh, `-F` semantics translate to: index only the explicitly given file (plus its includes) and do not merge in default user/system configs.
 
-- Read **only that file as the entry**.
-- **Do not implicitly merge** system or user default configs.
-- **Do follow its `Include` directives** (resolved according to the documented/configured context for that source).
+## `ssh -G host`
 
-This isolation is important for correctness and is called out as a required test case.
+- Prints the effective configuration after evaluating all sources for a host; the authoritative resolution. May canonicalize the hostname (depending on `CanonicalizeHostname`) and may therefore perform DNS lookups.
 
-### Default discovery
+## Drop-in directories (distro conventions)
 
-Helpers may index standard entry points:
+Common real-world setups use drop-in directories included from the main config, for example:
 
-| Context | Typical entry | Typical base/intent |
-|---------|---------------|---------------------|
-| User | `~/.ssh/config` | User SSH directory context (e.g. `~/.ssh`) |
-| System | `/etc/ssh/ssh_config` | System SSH directory context (e.g. `/etc/ssh`) |
+- `/etc/ssh/ssh_config.d/*.conf` — included by an `Include` line in `/etc/ssh/ssh_config` on many distributions (Debian, Fedora, ...).
+- User-side `~/.ssh/config.d/` patterns exist but are **not** part of OpenSSH itself.
 
-Default discovery should provide sensible, well-defined behavior and can include drop-in defaults when rules are clearly specified and tested.
+A completion tool that wants drop-in support should treat it as following `Include` from the entry file (which is what ssh does), not as an implicit extra source.
 
-### Programmatic sources (`IndexPaths`, `IndexReader`)
+## Base-directory contexts
 
-- **`IndexPaths`** indexes provided `Source` values in order. Each source can set `Path`, `BaseDir`, and `System`; empty paths are skipped. Relative include resolution uses the source/base context (and follows configured include-graph rules).
-- **`IndexReader`** indexes content from a reader using the supplied `Source` context. When `Path` is set, it is used for cycle/identity handling and default base-dir derivation; when `BaseDir` is empty, user contexts fall back to `~/.ssh` (or configured home) and system contexts fall back to the system config directory as appropriate.
-- **`IndexConfig` / `HostCandidates`** use an explicit path in isolated `-F`-like mode, or default user+system discovery when the path is empty/whitespace.
+- Relative `Include` paths resolve to `~/.ssh` when included from a user configuration file, and `/etc/ssh` when included from the system configuration file (see [include.md](include.md)).
+- `~` expands to the local user's home directory; TOKENS and environment variables expand at connection time only.
 
-### Include/context parity matrix (current behavior)
+## Defaults of commonly referenced paths
 
-| Entry/context | Default sources merged | Base dir for relative includes (if not otherwise determined) | `~` in include args | Conditional `Include` in `Host`/`Match` | Notes |
-|---------------|------------------------|---------------------------------------------------------------|---------------------|------------------------------------------|------|
-| `IndexFile(path)` / `IndexConfig(explicit path)` | No (isolated, `-F`-like) | Including file directory (resolved path context) | Expanded | Followed conservatively for discovery | Follows include graph from entry file only. |
-| `IndexDefault()` / `IndexConfig("")` / `HostCandidates("")` | Yes (user + system, in order) | Per-source context (user `~/.ssh`, system `/etc/ssh` by default/options) | Expanded | Followed conservatively for discovery | Drop-in/system defaults depend on configured entry files and their includes. |
-| `IndexPaths(sources)` | No implicit merge beyond provided sources | `source.BaseDir` if set (expanded/normalized; used for top-level include context and relative source paths); else including file/source-derived context; user/system fallbacks may apply per source flags | Expanded | Followed conservatively for discovery | Empty source paths skipped; explicit `BaseDir`/`System` control resolution. `System=true` keeps system-relative include behavior even when default discovery is not used. |
-| `IndexReader(r, source)` | No | `source.BaseDir` if set (expanded/normalized); else `source.Path` dir if set; else user `~/.ssh` fallback, or system config dir when `source.System` | Expanded | Followed conservatively for discovery | `source.Path` (if set) participates in cycle/identity handling. |
-
-## API shape (illustrative)
-
-Implementations commonly separate source/context description from indexing and querying, for example:
-
-```go
-// Context for resolution (illustrative)
-type Source struct {
-    Path    string
-    BaseDir string
-    System  bool
-}
-
-func IndexFile(path string, opts ...Option) (*Index, error)
-// IndexPaths(...), IndexDefault(...)
-
-func (idx *Index) HostCandidates() []string
-// and/or DeclaredHosts() for richer info
-```
-
-Useful options include custom base directories, include resolver overrides for tests, and read/symlink policies where needed. Keep the public surface small and stable for consumers.
-
-## Drop-in and distro-specific includes
-
-Common real-world setups include drop-in directories, for example:
-- `/etc/ssh/ssh_config.d/*.conf`
-- user-side `config.d` patterns (distro/build dependent)
-
-Guidance:
-- include drop-ins only with **clearly defined, tested rules** aligned with expected OpenSSH behavior
-- **do not guess destructively** (avoid surprising behavior changes)
-- make default discovery **configurable** where variation is expected
-- document the delivered search behavior
-
-## Interaction with completers
-
-For SSH-related completers, host/config discovery should make it easy to:
-- index the exact file specified by `-F` (isolated)
-- index discovered defaults when no `-F` is provided
-- keep behavior consistent across tools that share a common host-discovery contract
-
-See [integration.md](integration.md).
-
-## Determinism and safety
-
-- No hidden global state: resolution depends on explicit inputs/options.
-- No network access, no process execution.
-- Deterministic, deduplicated results where appropriate (see [host-candidates.md](host-candidates.md)).
-
-## Testing expectations
-
-- **Custom `-F` isolation**: hosts/includes from user/system defaults must not leak when an explicit path is indexed, except what that file (and its includes) provides.
-- Default-path behavior tested against controlled fixtures/temp dirs (resolver overrides helpful for tests).
-
-See [testing.md](testing.md).
+| Directive | Default |
+|-----------|---------|
+| `GlobalKnownHostsFile` | `/etc/ssh/ssh_known_hosts`, `/etc/ssh/ssh_known_hosts2` |
+| `UserKnownHostsFile` | `~/.ssh/known_hosts`, `~/.ssh/known_hosts2` |
+| `IdentityFile` | `~/.ssh/id_rsa`, `~/.ssh/id_ecdsa`, `~/.ssh/id_ecdsa_sk`, `~/.ssh/id_ed25519`, `~/.ssh/id_ed25519_sk`, `~/.ssh/id_mldsa44_ed25519` |
+| `Port` | 22 |
 
 ## Related
 
-- [include.md](include.md) — base-dir and path resolution during include traversal.
-- [host-candidates.md](host-candidates.md) — candidate extraction/filtering outputs.
-- [integration.md](integration.md) — completer contracts and `-F` propagation.
+- [include.md](include.md) — Include path resolution.
+- [overview.md](overview.md) — source order and precedence.
+- [known-hosts.md](known-hosts.md) — known_hosts file locations.
