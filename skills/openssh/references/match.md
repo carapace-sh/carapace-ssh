@@ -43,6 +43,8 @@ Tolerant handling commonly needs to account for criteria including:
 - `all`, `canonical`, `final` (zero-arg / standalone forms)
 - connection/context criteria such as `address`, `localaddress`, `ruser`, `rdomain`, `localport`, `remoteport` (consume arguments when known)
 
+For completion-safe parsing, treat documented value-arg criteria as consuming a single argument (including `criterion=value` / spaced `=` / empty quoted forms) unless a criterion is explicitly command-like (`exec` rest-of-line, opaque; `command` value arg, never executed).
+
 This list is not exhaustive; unknown criteria must be handled without aborting.
 
 ## Token alignment and argument arity
