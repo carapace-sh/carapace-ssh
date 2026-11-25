@@ -97,7 +97,7 @@ func IndexFile(path string, opts ...Option) (*Index, error) {
 		return idx, nil
 	}
 
-	source := makeSource(path, "", o)
+	source := makeSource(path, "", false, o)
 	err := indexSource(idx, source, o)
 	if err != nil && isNonFatalReadError(err) {
 		return idx, nil
@@ -136,8 +136,7 @@ func IndexPaths(sources []Source, opts ...Option) (*Index, error) {
 		if source.Path == "" {
 			continue
 		}
-		resolved := makeSource(source.Path, source.BaseDir, o)
-		resolved.System = source.System
+		resolved := makeSource(source.Path, source.BaseDir, source.System, o)
 		if err := indexSource(idx, resolved, o); err != nil && !isNonFatalReadError(err) {
 			errs = append(errs, err)
 		}
@@ -195,7 +194,7 @@ func IndexReader(r io.Reader, source Source, opts ...Option) (*Index, error) {
 		}
 	}
 	if source.Path != "" {
-		source = makeSource(source.Path, source.BaseDir, o)
+		source = makeSource(source.Path, source.BaseDir, source.System, o)
 		if resolved, resolveErr := ix.resolvePath(source.Path, filepath.Dir(source.Path), source); resolveErr == nil {
 			ix.visited[resolved.visitKey] = struct{}{}
 			source.Path = resolved.readPath
@@ -225,7 +224,7 @@ func newIndex() *Index {
 	}
 }
 
-func makeSource(path, baseDir string, o indexOptions) Source {
+func makeSource(path, baseDir string, system bool, o indexOptions) Source {
 	expanded := expandTilde(path, o.homeDir)
 	if baseDir != "" {
 		baseDir = expandTilde(baseDir, o.homeDir)
@@ -235,8 +234,13 @@ func makeSource(path, baseDir string, o indexOptions) Source {
 			baseDir = filepath.Clean(baseDir)
 		}
 	}
-	if !filepath.IsAbs(expanded) && baseDir != "" {
-		expanded = filepath.Join(baseDir, expanded)
+	if !filepath.IsAbs(expanded) {
+		switch {
+		case baseDir != "":
+			expanded = filepath.Join(baseDir, expanded)
+		case system:
+			expanded = filepath.Join(filepath.Dir(o.systemConfigPath), expanded)
+		}
 	}
 	absPath, err := o.abs(expanded)
 	if err != nil {
@@ -245,7 +249,7 @@ func makeSource(path, baseDir string, o indexOptions) Source {
 	if baseDir == "" {
 		baseDir = filepath.Dir(absPath)
 	}
-	return Source{Path: absPath, BaseDir: baseDir}
+	return Source{Path: absPath, BaseDir: baseDir, System: system}
 }
 
 type indexer struct {
