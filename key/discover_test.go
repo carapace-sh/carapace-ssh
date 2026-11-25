@@ -67,6 +67,24 @@ func TestDiscoverIdentityFilesMissingOrUnreadable(t *testing.T) {
 	if files, err := DiscoverIdentityFiles(""); err != nil || len(files) != 0 {
 		t.Fatalf("DiscoverIdentityFiles(empty) = %#v, %v, want empty,nil", files, err)
 	}
+
+	dir := t.TempDir()
+	noRead := filepath.Join(dir, "noread")
+	if err := os.Mkdir(noRead, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	writeFile(t, filepath.Join(noRead, "id_ed25519"))
+	if err := os.Chmod(noRead, 0o000); err != nil {
+		t.Fatalf("chmod: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(noRead, 0o755) })
+	files, err = DiscoverIdentityFiles(noRead)
+	if err != nil {
+		t.Fatalf("DiscoverIdentityFiles(unreadable): %v", err)
+	}
+	if len(files) != 0 {
+		t.Fatalf("DiscoverIdentityFiles(unreadable) = %#v, want empty", files)
+	}
 }
 
 func TestDiscoverDefaultIdentityFiles(t *testing.T) {

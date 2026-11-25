@@ -120,6 +120,24 @@ func TestIndexFile(t *testing.T) {
 	}
 }
 
+func TestIndexFileUnreadableIsNonFatal(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "authorized_keys")
+	writeFile(t, path, "ssh-ed25519 AAAA test@host\n")
+	if err := os.Chmod(path, 0o000); err != nil {
+		t.Fatalf("Chmod: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(path, 0o600) })
+
+	idx, err := IndexFile(path)
+	if err != nil {
+		t.Fatalf("IndexFile(unreadable): %v", err)
+	}
+	if got := idx.Entries(); len(got) != 0 {
+		t.Fatalf("IndexFile(unreadable) = %#v, want empty", got)
+	}
+}
+
 func TestDefaultPathAndIndexDefault(t *testing.T) {
 	if got := DefaultPath(""); got != "" {
 		t.Fatalf("DefaultPath(empty) = %q, want empty", got)
