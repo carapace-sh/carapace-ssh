@@ -157,7 +157,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 - `IdentityAgent` special values (`none`, `SSH_AUTH_SOCK`, paths/env-indirection forms) and multi-value directives (`IdentityFile`, `CertificateFile`) should retain useful declared data without probing.
 
 **Plan**
-- [ ] Add tests clarifying default source order, `-F` isolation, and fact collection across `Host`/`Match` blocks (including gated/ambiguous cases) to lock in intended behavior.
+- [~] Add tests clarifying default source order, `-F` isolation, and fact collection across `Host`/`Match` blocks (including gated/ambiguous cases) to lock in intended behavior. *(default order, `-F` isolation, and Match-gated static association/known_hosts aggregation contracts covered; more ambiguous/default edge cases may remain)*
 - [x] Define `KnownHostsFiles()` behavior for `none`/duplicates/empty values and whether declared values are normalized or returned as-is; update docs/tests accordingly. *(`"none"` excluded from aggregated paths, case-insensitive; declared facts preserved as-is)*
 - [ ] Keep fact values deterministic (stable query results/order where returned) and ensure no directive parsing triggers execution or network access.
 

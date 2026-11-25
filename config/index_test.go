@@ -1391,6 +1391,59 @@ Host app
 	}
 }
 
+func TestStaticFactsMatchGatedAssociationContract(t *testing.T) {
+	t.Setenv("SSH_AUTH_SOCK", "/tmp/ambient.sock")
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Match host gated.example exec "echo should-not-run" user alice
+  User gated-user
+  Port 2201
+  IdentityAgent SSH_AUTH_SOCK
+  UserKnownHostsFile ~/.ssh/gated_known_hosts none ~/.ssh/gated_known_hosts2
+
+Match !host other.example originalhost orig.example
+  User orig-user
+  GlobalKnownHostsFile /etc/ssh/orig_known_hosts
+`)
+	idx := mustIndexFile(t, cfg)
+
+	// Match host/originalhost host tokens are statically associated facts even
+	// when the Match contains non-evaluable criteria; no exec evaluation occurs.
+	if got, want := idx.HostsWithFacts(), []string{"gated.example", "orig.example"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostsWithFacts() = %#v, want %#v", got, want)
+	}
+
+	gated := idx.Facts("gated.example")
+	if gated.User != "gated-user" || gated.Port != "2201" {
+		t.Fatalf("Facts(gated.example) = %#v", gated)
+	}
+	if got, want := gated.IdentityAgent, "SSH_AUTH_SOCK"; got != want {
+		t.Fatalf("Facts(gated.example).IdentityAgent = %q, want %q", got, want)
+	}
+	if got, want := gated.AgentCandidates(), []string{"/tmp/ambient.sock"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("Facts(gated.example).AgentCandidates() = %#v, want %#v", got, want)
+	}
+	if got, want := gated.UserKnownHostsFiles, []string{"~/.ssh/gated_known_hosts", "none", "~/.ssh/gated_known_hosts2"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("Facts(gated.example).UserKnownHostsFiles = %#v, want %#v", got, want)
+	}
+
+	orig := idx.Facts("orig.example")
+	if orig.User != "orig-user" {
+		t.Fatalf("Facts(orig.example).User = %q, want orig-user", orig.User)
+	}
+
+	// Negated Match host criterion token should not get extracted/associated.
+	if got := idx.Facts("other.example"); !reflect.DeepEqual(got, HostFacts{}) {
+		t.Fatalf("Facts(other.example) = %#v, want zero", got)
+	}
+
+	// Aggregated known_hosts paths are deterministic and exclude "none".
+	if got, want := idx.KnownHostsFiles(), []string{"/etc/ssh/orig_known_hosts", "~/.ssh/gated_known_hosts", "~/.ssh/gated_known_hosts2"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("KnownHostsFiles() = %#v, want %#v", got, want)
+	}
+}
+
 func TestIndexReaderExplicitBaseDirOverridesPathDir(t *testing.T) {
 	dir := t.TempDir()
 	pathDir := filepath.Join(dir, "pathdir")
