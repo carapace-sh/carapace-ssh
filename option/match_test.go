@@ -94,3 +94,38 @@ func TestMatchCriteriaList(t *testing.T) {
 		t.Fatal("MatchCriteria() missing localgroup")
 	}
 }
+
+func TestDocumentedMatchCriteriaKinds(t *testing.T) {
+	// Criteria documented in ssh_config(5) Match section (OpenSSH 9.x+).
+	documented := []struct {
+		name  string
+		kind  MatchArgKind
+		hosts bool
+	}{
+		{name: "all", kind: MatchArgNone},
+		{name: "canonical", kind: MatchArgNone},
+		{name: "final", kind: MatchArgNone},
+		{name: "exec", kind: MatchArgRest},
+		{name: "localnetwork", kind: MatchArgValue},
+		{name: "host", kind: MatchArgValue, hosts: true},
+		{name: "originalhost", kind: MatchArgValue, hosts: true},
+		{name: "tagged", kind: MatchArgValue},
+		{name: "command", kind: MatchArgValue},
+		{name: "user", kind: MatchArgValue},
+		{name: "localuser", kind: MatchArgValue},
+		{name: "version", kind: MatchArgValue},
+		{name: "sessiontype", kind: MatchArgValue},
+	}
+	for _, tt := range documented {
+		c, ok := LookupMatchCriterion(tt.name)
+		if !ok {
+			t.Fatalf("LookupMatchCriterion(%q) missing", tt.name)
+		}
+		if c.Kind != tt.kind {
+			t.Fatalf("LookupMatchCriterion(%q).Kind=%v, want %v", tt.name, c.Kind, tt.kind)
+		}
+		if c.ExtractsHosts != tt.hosts {
+			t.Fatalf("LookupMatchCriterion(%q).ExtractsHosts=%v, want %v", tt.name, c.ExtractsHosts, tt.hosts)
+		}
+	}
+}
