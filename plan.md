@@ -141,7 +141,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 - [ ] Define/document include path-resolution rules per context (default user, default system, explicit `-F`, `IndexPaths` source, `IndexReader`) including precedence/fallback behavior for relative paths.
 - [~] Add tests for: system config including `ssh_config.d/*` and nested relative includes, `-F` file with relative/glob/quoted includes, `IndexReader` with/without `Path`/`BaseDir`/`System`, and user/system base-dir expectations. *(substantial coverage exists, including reader explicit/default base-dir contexts; parity matrix/documentation pending)* *(substantial coverage exists; parity matrix/documentation pending)*
 - [x] Decide and codify behavior for `Include` inside `Host`/`Match` blocks (recommended: keep conservative follow for completion discovery unless it causes material correctness issues, but make it explicit and regression-tested). *(currently followed for discovery; covered by tests and documented)*
-- [ ] Preserve non-fatal handling for missing/unreadable/no-match includes and deterministic processing of glob results.
+- [x] Preserve non-fatal handling for missing/unreadable/no-match includes and deterministic processing of glob results. *(covered by include cycle/missing tests and added deterministic glob/no-match/unreadable regressions)*
 - [ ] Review `~`/path handling in include args (and interactions with quoted/`=` forms); avoid expanding tokens/env in unsafe or surprising ways.
 
 **Acceptance**
