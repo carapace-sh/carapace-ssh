@@ -7,7 +7,7 @@
 - Parse and index ssh_config without evaluating runtime conditions.
 - Extract literal host candidates from `Host` and `Match host|originalhost`.
 - Follow `Include` directives with globbing, recursion, cycle detection, and `~` expansion.
-- Tolerate unknown keywords/Match criteria and malformed lines where possible.
+- Tolerate unknown keywords/Match criteria and malformed lines where possible (best-effort recovery).
 - Support explicit config paths (`-F` semantics) and default user/system config discovery.
 - Expose best-effort static per-host facts without dynamic Match evaluation.
 - Parse known_hosts files for completable host enrichment and merging (skips hashed and revoked hosts; extracts bracketed host/port forms to hostnames).
@@ -21,13 +21,15 @@
 
 - **Never executes** `Match exec`, `Match command`, or any external process.
 - No network access during parsing/indexing.
-- Best-effort/tolerant behavior: unreadable includes or unknown constructs must not prevent returning results from the rest of the config graph.
+- Best-effort/tolerant behavior: unreadable includes or unknown constructs must not prevent returning results from the rest of the config graph; malformed/binary input is tolerated where practical.
 
 This library is not an `ssh -G`-compatible evaluator and does not perform dynamic Match evaluation, canonicalization, or token expansion.
 
 ## Contract notes
 
-- `HostCandidates()` returns literal completable hosts; `DeclaredHosts()` preserves declared tokens including patterns/negations.
+- `HostCandidates()` returns literal completable hosts (deduped, sorted). `DeclaredHosts()` preserves declared tokens including patterns/negations before filtering.
+- `isCompletableHost` rejects empty tokens, tokens starting with `!`, tokens containing whitespace, and tokens containing pattern/wildcard characters such as `* ? [ ] { } ( ) | + ^ $ !` (glob-like/negated forms are not offered as literal completions).
+- In `Match`, only `host` and `originalhost` contribute extracted candidates; negated `host`/`originalhost` criteria do not contribute candidates. `exec` is treated as opaque/rest (never executed; extraction stops at it). `command` is treated as a value argument (consumed, never executed). Unknown criteria are skipped conservatively to preserve alignment where feasible.
 - `Include` directives inside `Host`/`Match` blocks are followed conservatively for discovery (completion-safe over-inclusion).
 - Static facts are best-effort and non-authoritative; in the current static model facts may be associated with declared negated `Host` tokens.
 - `destination.ParseRemote()` tries URI parsing first and may fall back to tolerant SCP-style parsing; use `destination.ParseURI()` for URI-only acceptance.
@@ -72,7 +74,7 @@ declared := index.DeclaredHosts() // includes patterns/negations before filterin
 facts := index.Facts("myhost")     // best-effort static directives
 ```
 
-Other config helpers: `IndexConfig(path, ...)`, `IndexDefault(...)`, `IndexPaths(...)`, `IndexReader(...)`.
+Other config helpers: `IndexConfig(path, ...)`, `IndexDefault(...)`, `IndexPaths(...)`, `IndexReader(...)`, `DefaultSources(...)`.
 
 ## Development
 

@@ -7,11 +7,11 @@ How to collect, filter, deduplicate, and expose host candidates from ssh_config 
 Collect literal host names/pattern tokens from:
 
 1. **`Host` arguments**
-   - Each token in a `Host` line is a declared host pattern/name.
+   - Each token in a `Host` line is a declared host pattern/name (split on commas as parsed).
 2. **`Match host|originalhost` criteria**
    - Values associated with `host` and `originalhost` criteria in `Match` lines.
    - May be comma-separated lists.
-   - May include `!`-negated forms as they appear in criteria arguments.
+   - Do not extract values from negated `host`/`originalhost` criteria (e.g. `!host ...`).
 
 Extraction must occur even when the surrounding block is gated by non-evaluable/unsupported Match criteria (e.g. `Match exec`, `Match user`), as long as the `host`/`originalhost` values themselves are statically present and safely parseable. See [match.md](match.md).
 
@@ -21,12 +21,9 @@ Expose raw and/or filtered candidates as the API evolves. At minimum, provide a 
 
 ### Filtered (completable) candidates
 
-The filtered set must exclude non-completable patterns/wildcards and negations. Common guidance:
-- exclude tokens containing glob/wildcard/regex-like or pattern characters or whitespace as appropriate (e.g. characters in the set `* ? [ ] { } ( ) | + ^ $ !` and whitespace, consistent with current behavior)
-- correctly handle `!name` negations (negated entries are not completable hostnames)
-- do not produce empty/invalid candidates
+The filtered set excludes non-completable patterns/wildcards and negations. In practice, exclude tokens that are empty, begin with `!`, contain whitespace, or contain glob/wildcard/pattern characters such as `* ? [ ] { } ( ) | + ^ $ !` (consistent with current `carapace-ssh/config` behavior). Do not produce empty/invalid candidates.
 
-Current `carapace-ssh/config` contract: `HostCandidates()` returns this literal completable set (deduped, sorted). `DeclaredHosts()` preserves declared Host/Match host tokens including patterns/negations before filtering. Filtering rules should be documented and tested explicitly so consumers can rely on stable behavior.
+Current contract: `HostCandidates()` returns this literal completable set (deduped, sorted). `DeclaredHosts()` preserves declared Host/Match host tokens including patterns/negations before filtering.
 
 ### Raw/declared candidates
 
@@ -58,9 +55,9 @@ See [include.md](include.md) and [defaults.md](defaults.md).
 ## Known limitations (by design)
 
 - No dynamic evaluation: candidates come from declared syntax, not from `ssh -G`-resolved effective configuration.
-- Patterns/wildcards are generally not offered as literal completions (filtered out), unless explicitly decided otherwise.
+- Patterns/wildcards are generally not offered as literal completions (filtered out).
 - Token expansion (`%h`, `%r`, `%p`) is out of scope; do not synthesize expanded candidates.
-- IPv6/bracketed forms: raw IPv6 literals may pass the current literal filter and be completable when declared as plain tokens; bracketed `[host]:port` forms are not literal completion candidates. `knownhosts` extraction normalizes bracketed host:port entries to raw hostnames for completion, and `destination` helpers should be used for bracketed/port-qualified formatting.
+- IPv6/bracketed forms: raw IPv6 literals may appear as declared tokens depending on input; bracketed `[host]:port` forms are not typical literal completion candidates from ssh_config `Host` lines. `knownhosts` extraction normalizes bracketed host:port entries to raw hostnames for completion, and `destination` helpers handle bracketed/port-qualified formatting.
 
 ## Testing focus
 

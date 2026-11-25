@@ -14,13 +14,13 @@ Verification approach for completion-safe OpenSSH configuration parsing/indexing
 
 ### Unit tests
 
-- **Syntax/tokenization/parsing**: `Host`, `Match`, `Include` recognition (case-insensitive keywords, optional `=`, flexible whitespace, comments, blank lines, quoting).
-- **Match handling**: tolerant extraction of `host`/`originalhost`, comma-separated values, negated forms, zero-arg criteria (`all`, `canonical`, `final`), argument-consuming criteria, and unknown criteria without aborting.
-- **Include resolution**: `~` expansion, relative path/base-dir rules, globbing, recursion, cycle detection, quoted/`=` forms, deterministic include processing where relevant.
-- **Host candidates**: raw/declared extraction, completable filtering (wildcards/negations/pattern tokens as specified), deduplication, and stable ordering.
+- **Syntax/tokenization/parsing**: `Host`, `Match`, `Include` recognition (case-insensitive keywords, optional `=`, flexible whitespace, comments, blank lines, quoting), CRLF and backslash line continuations (best-effort).
+- **Match handling**: tolerant extraction of `host`/`originalhost`, comma-separated values, and that negated `host`/`originalhost` criteria do not contribute candidates. Zero-arg criteria (`all`, `canonical`, `final`), argument-consuming criteria, inline/spaced `=` forms, empty quoted args where relevant, `exec` treated as opaque/rest (stops extraction) and never executed, `command` treated as value arg (consumed) and never executed, unknown criteria without aborting.
+- **Include resolution**: `~` expansion, relative path/base-dir rules, globbing, recursion, cycle detection, quoted/`=` forms, deterministic include processing where relevant, and non-fatal missing/unreadable/non-matching targets.
+- **Host candidates**: declared extraction (`DeclaredHosts`) vs completable filtering (`HostCandidates`), filtering of patterns/wildcards/negations/whitespace per current rules, deduplication, and stable ordering.
 - **known_hosts**: plain/comma lists, bracketed `[host]:port`, markers (e.g. `@cert-authority`, `@revoked`), hashed hosts excluded from completion but parseable, malformed-line tolerance, merge/dedup behavior.
-- **Static facts**: directive extraction from relevant blocks, deterministic query results, and clearly defined behavior under Match-gated or ambiguous association cases.
-- **Metadata**: keyword normalization/lookup and Match criterion arity/form handling (including rest-of-line command criteria) as applicable.
+- **Static facts**: directive extraction from relevant blocks, deterministic query results, and clearly defined behavior under Match-gated or ambiguous association cases (including the current caveat that facts may be associated with declared negated `Host` tokens in the static model).
+- **Metadata**: keyword normalization/lookup and Match criterion arity/form handling (`MatchArgNone`/`MatchArgValue`/`MatchArgRest`) as applicable.
 
 ### Fixtures and expectation cases
 

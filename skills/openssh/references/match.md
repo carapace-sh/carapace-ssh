@@ -17,24 +17,24 @@ Collect literal host candidates from `Match` criteria:
 - `host` — match against the target hostname as given
 - `originalhost` — match against the original hostname as specified on the command line
 
-Include comma-separated lists and preserve awareness of `!`-negated forms as they appear in criteria arguments (see [host-candidates.md](host-candidates.md) for how negations/wildcards affect the *completable* filtered set). Do **not** extract hosts from negated `host`/`originalhost` criteria (e.g. `!host bad.example`), though their arguments must still be consumed for alignment. Extraction is static/best-effort and must not rely on runtime evaluation.
+Include comma-separated lists. Do **not** extract hosts from negated `host`/`originalhost` criteria (e.g. `!host bad.example`); their arguments/values are still consumed for alignment when parsing the criterion form. Extraction is static/best-effort and must not rely on runtime evaluation.
 
 ## Behavioral requirements (tolerant, non-executing)
 
 | Requirement | Detail |
 |-------------|--------|
-| **No execution** | Never run `exec`/`command` or any external process. Treat `exec` command arguments as opaque (never executed); `command` takes a command/subsystem pattern argument (possibly empty/quoted) and must also never be executed. |
+| **No execution** | Never run `exec`/`command` or any external process. Treat `exec` as opaque/rest-of-criterion text and stop host extraction for that `Match` line to avoid misparsing; `command` takes a value argument (possibly empty/quoted) and must also never be executed (consume it for alignment). |
 | **Zero-arg criteria** | Parse/skip known zero-arg criteria such as `all`, `canonical`, `final` (and `canonical all` forms as encountered). |
-| **Argument-consuming criteria** | Parse/skip criteria that consume arguments so token alignment is preserved well enough to still find `host`/`originalhost` in the same `Match` line. |
-| **Unknown criteria/keywords** | Must not abort parsing of the file or prevent host extraction elsewhere. Fall back safely. |
+| **Argument-consuming criteria** | Parse/skip criteria that consume arguments so token alignment is preserved well enough to still find `host`/`originalhost` in the same `Match` line when safe. |
+| **Unknown criteria/keywords** | Must not abort parsing of the file or prevent host extraction elsewhere. Fall back safely (conservative skipping/alignment). |
 | **Host extraction survives gating** | Hosts declared in blocks gated by non-evaluable/unsupported criteria must still be discoverable as declared candidates where applicable to extraction goals (especially `Match host|originalhost` values themselves). |
 
 ## Known criteria to account for
 
 Tolerant handling commonly needs to account for criteria including:
-- `exec` (command argument; **never execute**, opaque; may prevent safe recovery of later criteria on the same line)
-- `command` (requested command/subsystem pattern argument; **never execute**; may be empty/quoted)
-- `host`, `originalhost` (**extract**, but not when the criterion itself is negated)
+- `exec` (command text; **never execute**, opaque; stop extraction on this criterion for the line)
+- `command` (requested command/subsystem pattern argument; **never execute**; value arg, may be empty/quoted)
+- `host`, `originalhost` (**extract when not negated**, e.g. `!host ...` is skipped)
 - `user`, `group`, `localuser`, `localgroup`
 - `localnetwork`
 - `tagged`
@@ -43,25 +43,25 @@ Tolerant handling commonly needs to account for criteria including:
 - `all`, `canonical`, `final` (zero-arg / standalone forms)
 - connection/context criteria such as `address`, `localaddress`, `ruser`, `rdomain`, `localport`, `remoteport` (consume arguments when known)
 
-For completion-safe parsing, treat documented value-arg criteria as consuming a single argument (including `criterion=value` / spaced `=` / empty quoted forms) unless a criterion is explicitly command-like (`exec` rest-of-line, opaque; `command` value arg, never executed).
+For completion-safe parsing, treat documented value-arg criteria as consuming a single argument (including `criterion=value`, spaced `=`, and empty quoted forms) unless a criterion is explicitly command-like (`exec` rest/opaque stop behavior; `command` value arg, never executed).
 
 This list is not exhaustive; unknown criteria must be handled without aborting.
 
 ## Token alignment and argument arity
 
-Match criteria vary in arity and form (single value, comma-separated values, boolean-like keywords, rest-of-line command strings). Tolerant token skipping must be good enough to recover `host`/`originalhost` without over-parsing.
+Match criteria vary in arity and form. Tolerant skipping should recover `host`/`originalhost` where practical without executing anything.
 
 Practical guidance:
-- Use explicit criterion metadata when available: argument kind/arity, value/list forms, and rest-of-line command cases.
+- Use explicit criterion metadata when available (`MatchArgNone`, `MatchArgValue`, `MatchArgRest`).
 - Support `criterion=value`, `criterion = value`, and spaced forms. Preserve empty quoted argument tokens where relevant (e.g. `command ""`, `tagged ""`).
-- When arity is unknown, prefer a conservative skip strategy that does not drop subsequent `host`/`originalhost` criteria if they can be identified; but never guess in a way that causes execution.
-- `exec` command text must remain opaque/unexecuted; recovering additional host criteria after an `exec` argument on the same line may be unsafe. `command` should be aligned as a value argument (not arbitrary rest-of-line text) for parsing safety/alignment.
+- When arity is unknown, prefer conservative skipping that avoids dropping later identifiable `host`/`originalhost` criteria when possible; never guess in a way that causes execution.
+- `exec` stops further host extraction for the same `Match` line in this library's current behavior (opaque). `command` is aligned as a value argument.
 
 ## Negation and lists
 
-- Criteria and host values may be negated with `!` (e.g. `!host`, or `!name` patterns depending on form).
+- Criteria may be negated with `!` (e.g. `!host ...`). Do not extract host candidates from negated `host`/`originalhost` criteria.
 - Names may be comma-separated.
-- Extraction should capture these forms as declared; completable filtering (dropping negated/wildcard-only patterns) is a separate step (see [host-candidates.md](host-candidates.md)).
+- Extracted forms are then subject to completable filtering separately (see [host-candidates.md](host-candidates.md)).
 
 ## Examples (conceptual)
 
