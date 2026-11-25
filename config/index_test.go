@@ -1,6 +1,7 @@
 package config
 
 import (
+	"slices"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -956,10 +957,8 @@ Host declared-after-2
 	}
 	declared := idx.DeclaredHosts()
 	for _, bad := range []string{"bad.example", "nope.example"} {
-		for _, h := range declared {
-			if h == bad {
-				t.Fatalf("DeclaredHosts() unexpectedly contains %q: %#v", bad, declared)
-			}
+		if slices.Contains(declared, bad) {
+			t.Fatalf("DeclaredHosts() unexpectedly contains %q: %#v", bad, declared)
 		}
 	}
 }
