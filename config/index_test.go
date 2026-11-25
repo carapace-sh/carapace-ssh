@@ -1369,6 +1369,36 @@ Host !neg
 	}
 }
 
+func TestStaticFactsDeterministicAcrossIndexRuns(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Host b a
+  UserKnownHostsFile ~/.ssh/b_kh ~/.ssh/a_kh
+  IdentityFile ~/.ssh/id_b ~/.ssh/id_a
+
+Host a
+  IdentityFile ~/.ssh/id_a2
+  GlobalKnownHostsFile /etc/ssh/kh_b /etc/ssh/kh_a
+`)
+	idx1 := mustIndexFile(t, cfg)
+	idx2 := mustIndexFile(t, cfg)
+
+	if got, want := idx1.HostsWithFacts(), idx2.HostsWithFacts(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostsWithFacts() not deterministic: %v vs %v", got, want)
+	}
+	if got, want := idx1.KnownHostsFiles(), idx2.KnownHostsFiles(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("KnownHostsFiles() not deterministic: %v vs %v", got, want)
+	}
+	if got, want := idx1.KnownHostsFiles(), []string{"/etc/ssh/kh_a", "/etc/ssh/kh_b", "~/.ssh/a_kh", "~/.ssh/b_kh"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("KnownHostsFiles() = %#v, want %#v", got, want)
+	}
+	// Declared list order is preserved as appended (no sorting/normalization).
+	if got, want := idx1.Facts("a").IdentityFiles, []string{"~/.ssh/id_b", "~/.ssh/id_a", "~/.ssh/id_a2"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("Facts(a).IdentityFiles = %#v, want %#v", got, want)
+	}
+}
+
 func TestStaticFactsScalarOverrideAndListAppend(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

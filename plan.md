@@ -159,7 +159,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 **Plan**
 - [~] Add tests clarifying default source order, `-F` isolation, and fact collection across `Host`/`Match` blocks (including gated/ambiguous cases) to lock in intended behavior. *(default order, `-F` isolation, Match-gated static association, and KnownHostsFiles aggregation/none/trim/dedup contracts covered; more ambiguous/default edge cases may remain)*
 - [x] Define `KnownHostsFiles()` behavior for `none`/duplicates/empty values and whether declared values are normalized or returned as-is; update docs/tests accordingly. *(`"none"` excluded from aggregated paths, case-insensitive; declared facts preserved as-is)*
-- [ ] Keep fact values deterministic (stable query results/order where returned) and ensure no directive parsing triggers execution or network access.
+- [~] Keep fact values deterministic (stable query results/order where returned) and ensure no directive parsing triggers execution or network access. *(KnownHostsFiles/HostsWithFacts determinism covered; declared list order preserved as collected; no-exec/network guarantees covered by existing safety tests)*
 
 **Acceptance**
 - Fact APIs remain useful hints for completers while explicitly non-authoritative; no behavior implies `ssh -G` parity.
