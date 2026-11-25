@@ -832,6 +832,21 @@ func TestContinuationToleranceEdgeCases(t *testing.T) {
 	}
 }
 
+func TestQuotedContinuationPreservesDeclaredToken(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	// Continuation is joined at parser level; resulting quoted token contains
+	// whitespace and is therefore declared but not a literal completable host.
+	writeFile(t, cfg, "Host \"a\\\nb\"\nHost c\n")
+	idx := mustIndexFile(t, cfg)
+	if got, want := idx.HostCandidates(), []string{"c"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+	if got, want := idx.DeclaredHosts(), []string{"a b", "c"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("DeclaredHosts() = %#v, want %#v", got, want)
+	}
+}
+
 func TestMatchNegatedHostCriteriaDoNotExtractHosts(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
