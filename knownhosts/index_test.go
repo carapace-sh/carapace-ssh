@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/carapace-sh/carapace-ssh/destination"
 )
 
 func writeFile(t *testing.T, path, content string) {
@@ -286,5 +288,20 @@ func TestIndexFromConfigPathsTrimsWhitespace(t *testing.T) {
 	}
 	if got, want := idx.HostCandidates(), []string{"user.example"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
+func TestIPv6CandidatesCanBeFormattedByDestination(t *testing.T) {
+	idx, err := IndexReader(strings.NewReader("[2001:db8::1]:2222 ssh-ed25519 AAAA\n"))
+	if err != nil {
+		t.Fatalf("IndexReader(): %v", err)
+	}
+	got := idx.HostCandidates()
+	want := []string{"2001:db8::1"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+	if formatted := destination.FormatHostPort(got[0], "2222"); formatted != "[2001:db8::1]:2222" {
+		t.Fatalf("FormatHostPort() = %q, want %q", formatted, "[2001:db8::1]:2222")
 	}
 }
