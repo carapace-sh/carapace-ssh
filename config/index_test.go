@@ -183,6 +183,39 @@ Include missing.conf
 	}
 }
 
+func TestIncludeGlobOrderIsDeterministic(t *testing.T) {
+	dir := t.TempDir()
+	base := filepath.Join(dir, "cfg")
+	inc := filepath.Join(base, "inc")
+	writeFile(t, filepath.Join(inc, "b.conf"), "Host b\n")
+	writeFile(t, filepath.Join(inc, "a.conf"), "Host a\n")
+	writeFile(t, filepath.Join(inc, "c.conf"), "Host c\n")
+	writeFile(t, filepath.Join(base, "main.conf"), "Host main\nInclude inc/*.conf\n")
+
+	for i := 0; i < 5; i++ {
+		idx := mustIndexFile(t, filepath.Join(base, "main.conf"))
+		if got, want := idx.HostCandidates(), []string{"a", "b", "c", "main"}; !reflect.DeepEqual(got, want) {
+			t.Fatalf("run %d: HostCandidates() = %#v, want %#v", i, got, want)
+		}
+	}
+}
+
+func TestIncludeNoMatchAndUnreadableAreNonFatal(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, "Host main\nInclude missing/*.conf\nInclude unreadable.conf\nHost after\n")
+
+	idx := mustIndexFile(t, cfg, WithReadFile(func(path string) ([]byte, error) {
+		if filepath.Base(path) == "unreadable.conf" {
+			return nil, os.ErrPermission
+		}
+		return os.ReadFile(path)
+	}))
+	if got, want := idx.HostCandidates(), []string{"after", "main"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
 func TestIncludeEqualsAndRelativeToIncludingFile(t *testing.T) {
 	dir := t.TempDir()
 	base := filepath.Join(dir, "cfg")
