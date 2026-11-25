@@ -11,7 +11,8 @@ go vet ./...                           # static checks
 go test ./config -run '^$' -fuzz=FuzzIndexReader  # run a fuzz target explicitly (config also has FuzzParseDirectives; knownhosts/authorizedkeys/destination have one each)
 ```
 
-- No `Makefile`, CI workflows, or linter config files are present. Do not invent `golangci-lint`, format, or release commands.
+- No `Makefile` or linter config files are present. Do not invent `golangci-lint` or format commands.
+- CI lives in `.github/workflows/build.yml`: `go vet` + `go test ./...` on push/PR, and a tag-driven (`v*`) release job running goreleaser (`.goreleaser.yaml` builds nothing; releases carry no assets, only the changelog).
 
 ## Architecture
 
