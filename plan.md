@@ -192,7 +192,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 
 **Plan**
 - [~] Expand `option` keyword/criterion coverage and tests as needed for parsing-critical cases (prioritize Match criteria first); keep lists sorted and normalization behavior explicit. *(`sessiontype`, `localaddress`, `group` covered; further audit pending)*
-- [ ] Add targeted tests for destination/URI/ProxyJump/IPv6 forms that intersect host completion and for helper tolerance on malformed inputs.
+- [~] Add targeted tests for destination/URI/ProxyJump/IPv6 forms that intersect host completion and for helper tolerance on malformed inputs. *(URI query/fragment/malformed-host forms and existing ProxyJump/IPv6/SCP coverage present; more malformed/tolerance cases can be added as needed)*
 - [x] Preserve non-fatal behavior for missing/unreadable discovery paths and avoid adding strict validation that rejects recoverable user data. *(covered existing missing/non-fatal paths; added unreadable authorized_keys and unreadable SSH identity dir regressions)*
 
 **Acceptance**
