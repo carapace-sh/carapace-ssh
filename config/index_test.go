@@ -380,6 +380,20 @@ func TestIndexPathsSystemSourceWithoutBaseDirUsesSystemDir(t *testing.T) {
 	}
 }
 
+func TestIndexPathsMissingSourcesNonFatal(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "exists.conf")
+	writeFile(t, cfg, "Host present\n")
+
+	idx, err := IndexPaths([]Source{{Path: filepath.Join(dir, "missing.conf")}, {Path: cfg}})
+	if err != nil {
+		t.Fatalf("IndexPaths(missing+present): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"present"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
 func TestDefaultSources(t *testing.T) {
 	dir := t.TempDir()
 	home := filepath.Join(dir, "home")
