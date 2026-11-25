@@ -317,6 +317,36 @@ func TestIndexPathsSkipsEmptySourcePath(t *testing.T) {
 	}
 }
 
+func TestIndexPathsDefaultSourceOrderAndIsolation(t *testing.T) {
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	userCfg := filepath.Join(home, ".ssh", "config")
+	sysCfg := filepath.Join(dir, "etc", "ssh", "ssh_config")
+	extra := filepath.Join(dir, "extra.conf")
+
+	writeFile(t, userCfg, "Host user-only shared\n")
+	writeFile(t, sysCfg, "Host system-only shared\n")
+	writeFile(t, extra, "Host extra\n")
+
+	// Programmatic IndexPaths over default sources should follow configured order.
+	idx, err := IndexPaths(DefaultSources(WithHomeDir(home), WithUserConfigPath(userCfg), WithSystemConfigPath(sysCfg)), WithHomeDir(home), WithUserConfigPath(userCfg), WithSystemConfigPath(sysCfg))
+	if err != nil {
+		t.Fatalf("IndexPaths(DefaultSources): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"shared", "system-only", "user-only"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+
+	// Explicit IndexPaths source list is isolated to provided sources.
+	idx, err = IndexPaths([]Source{{Path: extra}}, WithHomeDir(home), WithUserConfigPath(userCfg), WithSystemConfigPath(sysCfg))
+	if err != nil {
+		t.Fatalf("IndexPaths(explicit): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"extra"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates(explicit) = %#v, want %#v", got, want)
+	}
+}
+
 func TestIndexPathsPreservesSystemSourceContext(t *testing.T) {
 	dir := t.TempDir()
 	home := filepath.Join(dir, "home")
