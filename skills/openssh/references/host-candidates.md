@@ -60,6 +60,7 @@ See [include.md](include.md) and [defaults.md](defaults.md).
 - No dynamic evaluation: candidates come from declared syntax, not from `ssh -G`-resolved effective configuration.
 - Patterns/wildcards are generally not offered as literal completions (filtered out), unless explicitly decided otherwise.
 - Token expansion (`%h`, `%r`, `%p`) is out of scope; do not synthesize expanded candidates.
+- IPv6/bracketed forms: raw IPv6 literals may pass the current literal filter and be completable when declared as plain tokens; bracketed `[host]:port` forms are not literal completion candidates. `knownhosts` extraction normalizes bracketed host:port entries to raw hostnames for completion, and `destination` helpers should be used for bracketed/port-qualified formatting.
 
 ## Testing focus
 

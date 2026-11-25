@@ -44,7 +44,7 @@ Consider:
 - deduplication across sources
 - deterministic ordering
 - optional source metadata (e.g. where a host came from) if useful to consumers, without complicating the simple API
-- port handling: whether to emit `host`, `[host]:port`, or both forms depends on consumer needs (document). Current completable host extraction emits the host portion only (stripping brackets/ports); bracketed IPv6 hosts are returned as raw IPv6 literals. Consumers can apply destination-specific formatting when needed.
+- port handling: whether to emit `host`, `[host]:port`, or both forms depends on consumer needs (document). Current completable host extraction emits the host portion only (stripping brackets/ports); bracketed IPv6 hosts are returned as raw IPv6 literals. This matches config host candidates, where raw IPv6 literals may be completable but bracketed `[host]:port` tokens are not literal completion candidates. Consumers should use `destination.FormatHostPort`/target helpers when they need bracketed/port-qualified display or connection strings.
 - config-declared `UserKnownHostsFile`/`GlobalKnownHostsFile` paths (aggregated via config index helpers, trimming whitespace and excluding empty/`none`) can be indexed by callers for enrichment. `knownhosts.IndexFromConfigPaths(...)` provides this helper (trims whitespace, ignores empty/`none`, expands leading `~` when home is configured). Config indexing returns declared paths as-is (no token expansion); OpenSSH token expansion is not performed.
 
 ## Safety and tolerance

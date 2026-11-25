@@ -177,7 +177,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 **Plan**
 - [x] Document/decide policy for `@revoked` and `@cert-authority` host tokens (recommended: exclude revoked hosts from completion candidates; treat CA-scope patterns conservatively and do not invent literals) and implement/tests accordingly. *(`@revoked` excluded; explicit literal `@cert-authority` host tokens may be suggested when otherwise completable; policy now documented in code/docs/tests - may revisit if stricter behavior desired)*
 - [x] Add tests for: mixed comma lists with positive + wildcard + negated tokens, `@cert-authority`/`@revoked` edge cases, bracketed IPv6 with port (`[2001:db8::1]:2222`), malformed marker/hash/field lines, and unreadable/missing files. *(key cases added; more combinations pending)*
-- [ ] Reconcile host candidate normalization for IPv6/bracketed forms across `knownhosts`, `config`, and `destination` helpers (define canonical completable form or clearly document raw-form behavior).
+- [~] Reconcile host candidate normalization for IPv6/bracketed forms across `knownhosts`, `config`, and `destination` helpers (define canonical completable form or clearly document raw-form behavior). *(documented current contract: raw IPv6 literals can be completable; bracketed `[host]:port` normalized to raw host by knownhosts and not treated as literal config completion; destination helpers own bracketed/port formatting)*
 - [ ] Ensure `IndexPaths`/`IndexDefault`/reader behavior remains deterministic and non-fatal; support enrichment from config-declared `UserKnownHostsFile`/`GlobalKnownHostsFile` paths at API/integration level (including handling of `none` and multi-path values by callers).
 
 **Acceptance**
