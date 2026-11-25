@@ -20,6 +20,10 @@ func FuzzIndexReader(f *testing.F) {
 		"*.wildcard.example.com,good.example.com ssh-rsa AAAA...",
 		"!negated.example.com,ok.example.com ssh-rsa AAAA...",
 		"@cert-authority ca-only.example ssh-ed25519 AAAA...",
+		"bad.example !negated,good.example ssh-ed25519 AAAA...",
+		"[192.0.2.1]:2222 ssh-ed25519 AAAA...",
+		"host1.example,host2.example,*.wild,|1|abc|def ssh-rsa AAAA...",
+		"@revoked [2001:db8::9]:22 ssh-ed25519 AAAA...",
 		"\xff\xfe",
 	}
 	for _, seed := range seeds {
