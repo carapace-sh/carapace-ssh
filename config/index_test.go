@@ -847,6 +847,21 @@ func TestQuotedContinuationPreservesDeclaredToken(t *testing.T) {
 	}
 }
 
+func TestQuotedHashAndEscapesInHostTokens(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, "Host \"a#b\" c\\#d e#f\n")
+	idx := mustIndexFile(t, cfg)
+	// '#' inside quotes is literal token content. Escaped '#' outside quotes is
+	// also literal. Unquoted '#' starts a comment, so "e#f" becomes "e".
+	if got, want := idx.DeclaredHosts(), []string{"a#b", "c#d", "e"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("DeclaredHosts() = %#v, want %#v", got, want)
+	}
+	if got, want := idx.HostCandidates(), []string{"a#b", "c#d", "e"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
 func TestMatchNegatedHostCriteriaDoNotExtractHosts(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
