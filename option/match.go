@@ -22,6 +22,7 @@ type MatchCriterion struct {
 }
 
 var matchCriteria = map[string]MatchCriterion{
+	// ssh_config(5) Match criteria (OpenSSH 10.6p1 man page).
 	"all":          {Name: "all", Kind: MatchArgNone},
 	"canonical":    {Name: "canonical", Kind: MatchArgNone},
 	"final":        {Name: "final", Kind: MatchArgNone},
@@ -30,21 +31,23 @@ var matchCriteria = map[string]MatchCriterion{
 	"host":         {Name: "host", Kind: MatchArgValue, ExtractsHosts: true},
 	"originalhost": {Name: "originalhost", Kind: MatchArgValue, ExtractsHosts: true},
 	"user":         {Name: "user", Kind: MatchArgValue},
-	"group":        {Name: "group", Kind: MatchArgValue},
 	"localuser":    {Name: "localuser", Kind: MatchArgValue},
-	// Keep localgroup as a tolerant known criterion: present in some OpenSSH
-	// variants/builds and safe to align as a value argument.
-	"localgroup":   {Name: "localgroup", Kind: MatchArgValue},
-	"localaddress": {Name: "localaddress", Kind: MatchArgValue},
 	"localnetwork": {Name: "localnetwork", Kind: MatchArgValue},
 	"tagged":       {Name: "tagged", Kind: MatchArgValue},
-	"address":      {Name: "address", Kind: MatchArgValue},
-	"ruser":        {Name: "ruser", Kind: MatchArgValue},
-	"rdomain":      {Name: "rdomain", Kind: MatchArgValue},
-	"localport":    {Name: "localport", Kind: MatchArgValue},
-	"remoteport":   {Name: "remoteport", Kind: MatchArgValue},
 	"sessiontype":  {Name: "sessiontype", Kind: MatchArgValue},
 	"version":      {Name: "version", Kind: MatchArgValue},
+
+	// Tolerant extra criteria seen in other OpenSSH contexts/variants or older
+	// syntax; kept as value args for safe alignment. Not all are documented in
+	// ssh_config(5) Match for this OpenSSH version.
+	"address":      {Name: "address", Kind: MatchArgValue},
+	"group":        {Name: "group", Kind: MatchArgValue},
+	"localgroup":   {Name: "localgroup", Kind: MatchArgValue},
+	"localaddress": {Name: "localaddress", Kind: MatchArgValue},
+	"localport":    {Name: "localport", Kind: MatchArgValue},
+	"rdomain":      {Name: "rdomain", Kind: MatchArgValue},
+	"remoteport":   {Name: "remoteport", Kind: MatchArgValue},
+	"ruser":        {Name: "ruser", Kind: MatchArgValue},
 }
 
 // LookupMatchCriterion returns metadata for a Match criterion.
