@@ -28,10 +28,10 @@ Common contexts (configurable; define and test explicitly):
 
 Implementation should model context via an explicit source/options type (e.g. `Source { Path, BaseDir, System }` or equivalent options) rather than hidden globals. Callers/tests must be able to control base dirs and roots.
 
-Current behavior highlights:
-- `IndexFile`/explicit paths and file-backed includes use the including file's directory as base context for traversal.
-- `IndexPaths` respects `Source.BaseDir`/`Source.System` when provided. Explicit `BaseDir` is expanded/normalized and used for resolving relative source paths and top-level include context. Relative `System=true` source paths with no `BaseDir` resolve against the configured system config directory.
-- `IndexReader` uses `Source.BaseDir` (expanded/normalized) or `Source.Path`'s directory when available; with no path/base dir it falls back to `~/.ssh` for user context or the configured system config directory for system context. Relative `System=true` `Path` values are resolved against the configured system config directory when no `BaseDir` is set.
+Design highlights (one common approach):
+- Explicit file-path indexing and file-backed includes use the including file's directory as base context for traversal.
+- Source-list indexing respects `Source.BaseDir`/`Source.System` when provided. Explicit `BaseDir` is expanded/normalized and used for resolving relative source paths and top-level include context. Relative `System=true` source paths with no `BaseDir` resolve against the configured system config directory.
+- Reader-based indexing uses `Source.BaseDir` (expanded/normalized) or `Source.Path`'s directory when available; with no path/base dir it falls back to `~/.ssh` for user context or the configured system config directory for system context. Relative `System=true` `Path` values are resolved against the configured system config directory when no `BaseDir` is set.
 - `~` is expanded in include patterns/paths using configured home dir; OpenSSH token expansion (`%h`, `%u`, etc.) and environment-variable expansion are not performed. Quoted/`=` include forms are parsed; glob ordering is deterministic (sorted matches).
 
 Token expansion (e.g. `%h`, `%u`) is generally not statically available for completion-safe indexing; avoid runtime expansion. Unexpanded `%`/`$ENV`-like forms are treated tolerantly (no execution/dynamic expansion). See [defaults.md](defaults.md) for the context parity matrix.

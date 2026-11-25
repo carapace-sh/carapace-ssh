@@ -29,27 +29,28 @@ Helpers may index standard entry points:
 
 Default discovery should provide sensible, well-defined behavior and can include drop-in defaults when rules are clearly specified and tested.
 
-### Programmatic sources (`IndexPaths`, `IndexReader`)
+### Programmatic sources (explicit source lists and readers)
 
-- **`IndexPaths`** indexes provided `Source` values in order. Each source can set `Path`, `BaseDir`, and `System`; empty paths are skipped. Relative include resolution uses the source/base context (and follows configured include-graph rules).
-- **`IndexReader`** indexes content from a reader using the supplied `Source` context. When `Path` is set, it is used for cycle/identity handling and default base-dir derivation; when `BaseDir` is empty, user contexts fall back to `~/.ssh` (or configured home) and system contexts fall back to the system config directory as appropriate.
-- **`IndexConfig` / `HostCandidates`** use an explicit path in isolated `-F`-like mode, or default user+system discovery when the path is empty/whitespace.
+- **Source-list indexing** indexes provided `Source` values in order. Each source can set `Path`, `BaseDir`, and `System`; empty paths are skipped. Relative include resolution uses the source/base context (and follows configured include-graph rules).
+- **Reader-based indexing** indexes content from a reader using the supplied `Source` context. When `Path` is set, it is used for cycle/identity handling and default base-dir derivation; when `BaseDir` is empty, user contexts fall back to `~/.ssh` (or configured home) and system contexts fall back to the system config directory as appropriate.
+- **Convenience entry points** use an explicit path in isolated `-F`-like mode, or default user+system discovery when the path is empty/whitespace.
 
-### Include/context parity matrix (current behavior)
+### Include/context parity matrix (illustrative design)
 
 | Entry/context | Default sources merged | Base dir for relative includes (if not otherwise determined) | `~` in include args | Conditional `Include` in `Host`/`Match` | Notes |
 |---------------|------------------------|---------------------------------------------------------------|---------------------|------------------------------------------|------|
-| `IndexFile(path)` / `IndexConfig(explicit path)` | No (isolated, `-F`-like) | Including file directory (resolved path context) | Expanded | Followed conservatively for discovery | Follows include graph from entry file only. |
-| `IndexDefault()` / `IndexConfig("")` / `HostCandidates("")` | Yes (user + system, in order) | Per-source context (user `~/.ssh`, system `/etc/ssh` by default/options) | Expanded | Followed conservatively for discovery | Drop-in/system defaults depend on configured entry files and their includes. |
-| `IndexPaths(sources)` | No implicit merge beyond provided sources | `source.BaseDir` if set (expanded/normalized; used for top-level include context and relative source paths); else including file/source-derived context; user/system fallbacks may apply per source flags | Expanded | Followed conservatively for discovery | Empty source paths skipped; explicit `BaseDir`/`System` control resolution. `System=true` keeps system-relative include behavior even when default discovery is not used. |
-| `IndexReader(r, source)` | No | `source.BaseDir` if set (expanded/normalized); else `source.Path` dir if set; else user `~/.ssh` fallback, or system config dir when `source.System` | Expanded | Followed conservatively for discovery | `source.Path` (if set) participates in cycle/identity handling. |
+| Explicit file path | No (isolated, `-F`-like) | Including file directory (resolved path context) | Expanded | Followed conservatively for discovery | Follows include graph from entry file only. |
+| Default discovery (empty path) | Yes (user + system, in order) | Per-source context (user `~/.ssh`, system `/etc/ssh` by default/options) | Expanded | Followed conservatively for discovery | Drop-in/system defaults depend on configured entry files and their includes. |
+| Explicit source list | No implicit merge beyond provided sources | `source.BaseDir` if set (expanded/normalized; used for top-level include context and relative source paths); else including file/source-derived context; user/system fallbacks may apply per source flags | Expanded | Followed conservatively for discovery | Empty source paths skipped; explicit `BaseDir`/`System` control resolution. `System=true` keeps system-relative include behavior even when default discovery is not used. |
+| Reader-based source | No | `source.BaseDir` if set (expanded/normalized); else `source.Path` dir if set; else user `~/.ssh` fallback, or system config dir when `source.System` | Expanded | Followed conservatively for discovery | `source.Path` (if set) participates in cycle/identity handling. |
 
 ## API shape (illustrative)
 
 Implementations commonly separate source/context description from indexing and querying, for example:
 
 ```go
-// Context for resolution (illustrative)
+// Illustrative names
+// Context for resolution
 type Source struct {
     Path    string
     BaseDir string
@@ -59,8 +60,8 @@ type Source struct {
 func IndexFile(path string, opts ...Option) (*Index, error)
 // IndexPaths(...), IndexDefault(...)
 
-func (idx *Index) HostCandidates() []string
-// and/or DeclaredHosts() for richer info
+func (idx *Index) CompletableHosts() []string
+func (idx *Index) DeclaredHosts() []string
 ```
 
 Useful options include custom base directories, include resolver overrides for tests, and read/symlink policies where needed. Keep the public surface small and stable for consumers.

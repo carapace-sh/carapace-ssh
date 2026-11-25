@@ -21,13 +21,13 @@ Expose raw and/or filtered candidates as the API evolves. At minimum, provide a 
 
 ### Filtered (completable) candidates
 
-The filtered set excludes non-completable patterns/wildcards and negations. In practice, exclude tokens that are empty, begin with `!`, contain whitespace, or contain glob/wildcard/pattern characters such as `* ? [ ] { } ( ) | + ^ $ !` (consistent with current `carapace-ssh/config` behavior). Do not produce empty/invalid candidates.
+The filtered set excludes non-completable patterns/wildcards and negations. In practice, exclude tokens that are empty, begin with `!`, contain whitespace, or contain glob/wildcard/pattern characters such as `* ? [ ] { } ( ) | + ^ $ !`. Do not produce empty/invalid candidates.
 
-Current contract: `HostCandidates()` returns this literal completable set (deduped, sorted). `DeclaredHosts()` preserves declared Host/Match host tokens including patterns/negations before filtering.
+A common contract: a filtered query returns this literal completable set (deduped, sorted), while a raw/declared query preserves declared Host/Match host tokens including patterns/negations before filtering.
 
 ### Raw/declared candidates
 
-Richer APIs (e.g. `DeclaredHosts()`) may expose declared forms, block/source context, or pattern tokens for future consumers (static facts, diagnostics). Keep public surface small initially; add only when needed.
+Richer APIs may expose declared forms, block/source context, or pattern tokens for future consumers (static facts, diagnostics). Keep public surface small initially; add only when needed.
 
 ## Determinism
 
@@ -38,11 +38,12 @@ Public results must be:
 ## API sketch
 
 ```go
-func (idx *Index) HostCandidates() []string // filtered, deduped, sorted
-// and/or DeclaredHosts() for richer info
+// Illustrative names
+func (idx *Index) CompletableHosts() []string // filtered, deduped, sorted
+func (idx *Index) DeclaredHosts() []string    // raw, richer info as needed
 ```
 
-Index construction APIs (illustrative): `IndexFile`, `IndexPaths`, `IndexDefault` with options for context/resolvers. See [defaults.md](defaults.md).
+Index construction APIs (illustrative): index-by-file, index-by-source-list, and index-defaults with options for context/resolvers. See [defaults.md](defaults.md).
 
 ## Interaction with config graph
 
@@ -57,7 +58,7 @@ See [include.md](include.md) and [defaults.md](defaults.md).
 - No dynamic evaluation: candidates come from declared syntax, not from `ssh -G`-resolved effective configuration.
 - Patterns/wildcards are generally not offered as literal completions (filtered out).
 - Token expansion (`%h`, `%r`, `%p`) is out of scope; do not synthesize expanded candidates.
-- IPv6/bracketed forms: raw IPv6 literals may appear as declared tokens depending on input; bracketed `[host]:port` forms are not typical literal completion candidates from ssh_config `Host` lines. `knownhosts` extraction normalizes bracketed host:port entries to raw hostnames for completion, and `destination` helpers handle bracketed/port-qualified formatting.
+- IPv6/bracketed forms: raw IPv6 literals may appear as declared tokens depending on input; bracketed `[host]:port` forms are not typical literal completion candidates from ssh_config `Host` lines. known_hosts extraction may normalize bracketed host:port entries to raw hostnames for completion, and destination helpers handle bracketed/port-qualified formatting.
 
 ## Testing focus
 

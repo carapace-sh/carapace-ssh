@@ -39,10 +39,10 @@ With this metadata, tolerant skipping can preserve alignment and still recover `
 ## Relationship to parsing and completion
 
 ```
-option/Match metadata
+metadata (keyword + Match criterion)
   ├─ tolerant tokenizer/parser (skip args correctly, no exec)
   ├─ host/static-fact extraction (recognize relevant directives)
-  └─ CLI/config option completion (ActionOptions, value enums)
+  └─ CLI/config option completion (option/value suggestions, value enums)
 ```
 
 Metadata is a support layer, not a runtime evaluator.

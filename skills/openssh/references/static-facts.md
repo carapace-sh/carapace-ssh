@@ -32,9 +32,9 @@ Defining how directives associate with hosts is critical and inherently approxim
 - Facts may be associated with **declared blocks** (`Host`/`Match` sections) and/or exposed via **simple matching helpers**.
 - Multiple blocks/patterns may match a given name in OpenSSH with first-match-wins and conditional semantics; static extraction cannot fully reproduce effective resolution.
 - `Match`-gated blocks complicate association: the indexer does not evaluate whether a Match applies, but it can still record what directives are declared under it.
-- In the current indexer, facts are associated to the declared host tokens active for a block (including `Match host`/`originalhost` tokens where present). This is a static convenience for completion and must not be treated as resolved/effective configuration.
-- Negated `Host` tokens (e.g. `!bad`) are declared and currently receive block fact association in this static model, but they are not completable host candidates. Negated `Match host`/`originalhost` criteria are not extracted as host tokens.
-- Aggregated `KnownHostsFiles()` is a normalized/deduped/sorted view across fact-bearing host tokens: it trims whitespace and excludes empty/case-insensitive `none`; declared per-host fact values preserve original tokens.
+- In a static indexer, facts may be associated to the declared host tokens active for a block (including `Match host`/`originalhost` tokens where present). This is a static convenience for completion and must not be treated as resolved/effective configuration.
+- Negated `Host` tokens (e.g. `!bad`) are declared and may receive block fact association in a static model, but they are not completable host candidates. Negated `Match host`/`originalhost` criteria are not extracted as host tokens.
+- An aggregated known_hosts-file query can be a normalized/deduped/sorted view across fact-bearing host tokens: it trims whitespace and excludes empty/case-insensitive `none`; declared per-host fact values preserve original tokens.
 
 **API/behavior must be explicit about limitations vs `ssh -G`.** Consumers should treat results as hints/suggestions derived from declarations, not authoritative resolved configuration.
 

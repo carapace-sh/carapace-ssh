@@ -52,10 +52,10 @@ This list is not exhaustive; unknown criteria must be handled without aborting.
 Match criteria vary in arity and form. Tolerant skipping should recover `host`/`originalhost` where practical without executing anything.
 
 Practical guidance:
-- Use explicit criterion metadata when available (`MatchArgNone`, `MatchArgValue`, `MatchArgRest`).
+- Use explicit criterion metadata when available (zero-arg, single-value, and rest-of-line argument kinds).
 - Support `criterion=value`, `criterion = value`, and spaced forms. Preserve empty quoted argument tokens where relevant (e.g. `command ""`, `tagged ""`).
 - When arity is unknown, prefer conservative skipping that avoids dropping later identifiable `host`/`originalhost` criteria when possible; never guess in a way that causes execution.
-- `exec` stops further host extraction for the same `Match` line in this library's current behavior (opaque). `command` is aligned as a value argument.
+- A defensible policy: `exec` stops further host extraction for the same `Match` line (opaque). `command` is aligned as a value argument. Document whichever policy is chosen.
 
 ## Negation and lists
 
