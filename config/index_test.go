@@ -1336,8 +1336,36 @@ Host a
 	if got, want := idx.KnownHostsFiles(), []string{"/etc/ssh/kh", "~/kh"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("KnownHostsFiles() = %#v, want %#v", got, want)
 	}
+	// Declared facts preserve original values; aggregation is a normalized view.
 	if got := idx.Facts("a").UserKnownHostsFiles; !reflect.DeepEqual(got, []string{"none", " NONE ", " ~/kh "}) {
 		t.Fatalf("Facts(a).UserKnownHostsFiles = %#v", got)
+	}
+}
+
+func TestKnownHostsFilesAggregationContract(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Host a b
+  UserKnownHostsFile ~/.ssh/a_kh /etc/ssh/shared_kh
+
+Match host m
+  GlobalKnownHostsFile /etc/ssh/shared_kh /etc/ssh/m_kh none
+
+Host !neg
+  UserKnownHostsFile ~/.ssh/neg_kh
+`)
+	idx := mustIndexFile(t, cfg)
+	// Deduped, sorted, trimmed, and excludes none across all fact-bearing host tokens.
+	if got, want := idx.KnownHostsFiles(), []string{"/etc/ssh/m_kh", "/etc/ssh/shared_kh", "~/.ssh/a_kh", "~/.ssh/neg_kh"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("KnownHostsFiles() = %#v, want %#v", got, want)
+	}
+	// Facts remain associated per declared host token (static model).
+	if got, want := idx.Facts("b").UserKnownHostsFiles, []string{"~/.ssh/a_kh", "/etc/ssh/shared_kh"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("Facts(b).UserKnownHostsFiles = %#v, want %#v", got, want)
+	}
+	if got, want := idx.Facts("!neg").UserKnownHostsFiles, []string{"~/.ssh/neg_kh"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("Facts(!neg).UserKnownHostsFiles = %#v, want %#v", got, want)
 	}
 }
 

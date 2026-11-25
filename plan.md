@@ -87,7 +87,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 - Full Match criteria audit/unknown-criterion fallback improvements and additional parsing alignment cases. *(`localaddress`, `group`, and `localgroup` added; further audit pending)*
 - Broader ssh_config syntax tolerance follow-ups (additional continuation/comment/escape edge cases, explicit `%`/env handling decisions). *(trailing/CRLF continuations and EOF continuation tolerated; comment backslash-newline no longer merges next line; unexpanded `%`/`$ENV` forms covered for tolerance/static preservation; expansion policy remains out of scope)*
 - Include base-dir/context parity matrix and documentation (`-F`, defaults, `IndexReader`/`IndexPaths`, user vs system, conditional include semantics). *(core behaviors, programmatic contexts, and parity matrix documented in skill refs; explicit `BaseDir` handling and relative `IndexPaths` source cases now covered; more parity cases pending)*
-- Static facts contract/tests/docs (known_hosts path semantics, Match-gated association clarity). *(association and `none`/aggregation semantics documented; negated Host token fact-association contract now locked by tests; further contract tests/docs may be useful)*
+- Static facts contract/tests/docs (known_hosts path semantics, Match-gated association clarity). *(association, `none`/aggregation semantics, negated Host token fact association, and Match-gated static association now locked by tests; further contract tests/docs may be useful)*
 - known_hosts policy/normalization follow-ups (IPv6/bracketed form consistency across packages, helper/API ergonomics for config-declared path enrichment; CA literal-host policy now explicit but may be revisited if needed). *(tilde expansion and multi-path enrichment via existing APIs covered)*
 - Longer targeted fuzz runs, regression fixtures, and README/AGENTS/skill reference updates for finalized contracts.
 
@@ -157,7 +157,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 - `IdentityAgent` special values (`none`, `SSH_AUTH_SOCK`, paths/env-indirection forms) and multi-value directives (`IdentityFile`, `CertificateFile`) should retain useful declared data without probing.
 
 **Plan**
-- [~] Add tests clarifying default source order, `-F` isolation, and fact collection across `Host`/`Match` blocks (including gated/ambiguous cases) to lock in intended behavior. *(default order, `-F` isolation, and Match-gated static association/known_hosts aggregation contracts covered; more ambiguous/default edge cases may remain)*
+- [~] Add tests clarifying default source order, `-F` isolation, and fact collection across `Host`/`Match` blocks (including gated/ambiguous cases) to lock in intended behavior. *(default order, `-F` isolation, Match-gated static association, and KnownHostsFiles aggregation/none/trim/dedup contracts covered; more ambiguous/default edge cases may remain)*
 - [x] Define `KnownHostsFiles()` behavior for `none`/duplicates/empty values and whether declared values are normalized or returned as-is; update docs/tests accordingly. *(`"none"` excluded from aggregated paths, case-insensitive; declared facts preserved as-is)*
 - [ ] Keep fact values deterministic (stable query results/order where returned) and ensure no directive parsing triggers execution or network access.
 
