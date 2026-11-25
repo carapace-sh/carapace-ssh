@@ -2,7 +2,8 @@
 // known_hosts files for completion use cases.
 //
 // It parses plain, comma-separated, and bracketed [host]:port entries (including
-// bracketed IPv6 forms, returned as raw hostnames), tolerates @cert-authority and
+// bracketed IPv6 forms, returned as raw hostnames; use destination helpers for
+// bracketed/port-qualified formatting), tolerates @cert-authority and
 // @revoked markers, ignores hashed hosts for completion, and excludes @revoked
 // entries from completable candidates. Explicit literal @cert-authority host
 // tokens may be included when they are otherwise completable; wildcard/negated
