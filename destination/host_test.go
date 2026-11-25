@@ -128,6 +128,39 @@ func TestJoinSCPRemote(t *testing.T) {
 	}
 }
 
+func TestDestinationMalformedInputTolerance(t *testing.T) {
+	// Tolerant parsing: malformed inputs must not panic and should return
+	// best-effort values consistent with current behavior.
+	hostPortCases := []struct {
+		in   string
+		host string
+		port string
+	}{
+		{"[bad", "[bad", ""},
+		{"]:22", "]", "22"},
+		{"[::1", "[::1", ""},
+		{"::1]:22", "::1]:22", ""},
+		{"host:port:extra", "host:port:extra", ""},
+		{"host:", "host", ""},
+		{":22", "", "22"},
+	}
+	for _, tt := range hostPortCases {
+		got := ParseHostPort(tt.in)
+		if got.Host != tt.host || got.Port != tt.port {
+			t.Fatalf("ParseHostPort(%q) = %#v, want host=%q port=%q", tt.in, got, tt.host, tt.port)
+		}
+	}
+
+	if got := ParseTarget("user@"); got.User != "user" || got.Host != "" || got.Port != "" {
+		t.Fatalf("ParseTarget(user@) = %#v", got)
+	}
+	// URI-shaped with empty host is treated as malformed URI but may still be
+	// parsed as scp-style remote by tolerant remote parsing.
+	if got, ok := ParseRemote("sftp:///path-only"); !ok || got.Target.Host != "sftp" || got.Path != "///path-only" || got.URI {
+		t.Fatalf("ParseRemote(sftp:///path-only) = (%#v,%v)", got, ok)
+	}
+}
+
 func TestProxyJump(t *testing.T) {
 	tests := []struct {
 		in   string
