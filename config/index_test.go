@@ -1697,6 +1697,26 @@ Host "a b" c\ d plain
 	}
 }
 
+func TestHostCandidatesFilterContract(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeFile(t, cfg, `
+Host plain.example ipv6-literal 2001:db8::1 *.wild ?single [bracket] {brace} (paren) |pipe +plus ^caret $dollar !negated name\ with\ space
+`)
+	idx := mustIndexFile(t, cfg)
+
+	// HostCandidates are literal completion candidates: no negations, no
+	// wildcard/pattern metacharacters, and no whitespace. Colon is allowed by
+	// the current config filter (useful for literal IPv6-like tokens), though
+	// bracketed known_hosts forms are handled by the knownhosts package.
+	if got, want := idx.HostCandidates(), []string{"2001:db8::1", "ipv6-literal", "plain.example"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+	if got := idx.DeclaredHosts(); len(got) == 0 {
+		t.Fatalf("DeclaredHosts() should preserve declared tokens")
+	}
+}
+
 func TestNegatedHostTokenFactsAssociationContract(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

@@ -26,7 +26,7 @@ The filtered set must exclude non-completable patterns/wildcards and negations. 
 - correctly handle `!name` negations (negated entries are not completable hostnames)
 - do not produce empty/invalid candidates
 
-Filtering rules should be documented and tested explicitly so consumers can rely on stable behavior.
+Current `carapace-ssh/config` contract: `HostCandidates()` returns this literal completable set (deduped, sorted). `DeclaredHosts()` preserves declared Host/Match host tokens including patterns/negations before filtering. Filtering rules should be documented and tested explicitly so consumers can rely on stable behavior.
 
 ### Raw/declared candidates
 

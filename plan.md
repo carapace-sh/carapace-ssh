@@ -123,7 +123,7 @@ This plan is based on the current implementation/tests (`config/`, `knownhosts/`
 
 **Plan**
 - [x] Add focused parser tests for continuation/comment/quote/escape combinations and malformed inputs (including binary/odd bytes and truncated lines). *(CRLF/continuation, comments/quoting, malformed/binary tolerance, and fuzz coverage added; more corner cases may remain)*
-- [ ] Document and, if needed, refine the completable-host filter contract (what is a literal completion vs declared pattern/negation), keeping `DeclaredHosts()`/facts semantics explicit.
+- [x] Document and, if needed, refine the completable-host filter contract (what is a literal completion vs declared pattern/negation), keeping `DeclaredHosts()`/facts semantics explicit. *(config doc, OpenSSH host-candidates ref, and filter-contract tests clarify HostCandidates vs DeclaredHosts; no behavior change needed)*
 - [ ] Ensure unexpanded `%` tokens and environment-variable-like forms in statically handled paths/values do not crash parsing and are handled conservatively (no dynamic expansion/evaluation).
 
 **Acceptance**
