@@ -1064,6 +1064,22 @@ func TestEdgeCaseFixture(t *testing.T) {
 	}
 }
 
+func TestDefaultLayoutFixture(t *testing.T) {
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd(): %v", err)
+	}
+	home := filepath.Join(wd, "testdata", "layout", "home")
+	sysCfg := filepath.Join(wd, "testdata", "layout", "etc", "ssh", "ssh_config")
+	idx, err := IndexDefault(WithHomeDir(home), WithUserConfigPath(filepath.Join(home, ".ssh", "config")), WithSystemConfigPath(sysCfg))
+	if err != nil {
+		t.Fatalf("IndexDefault(layout): %v", err)
+	}
+	if got, want := idx.HostCandidates(), []string{"home-dropin", "home-user", "system-dropin", "system-host"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostCandidates() = %#v, want %#v", got, want)
+	}
+}
+
 func TestMatchNegatedNonHostCriteriaStillExtractHosts(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
