@@ -195,8 +195,10 @@ func TestParseAndFormatURI(t *testing.T) {
 		{"ssh://user@host:2222/", URI{Scheme: "ssh", User: "user", Host: "host", Port: "2222", Path: "/"}, true, "ssh://user@host:2222/"},
 		{"scp://host", URI{Scheme: "scp", Host: "host", Path: ""}, true, "scp://host"},
 		{"SFTP://host", URI{Scheme: "sftp", Host: "host", Path: ""}, true, "sftp://host"},
+		{"sftp://host/dir/file.txt?mode=get&x=1#part", URI{Scheme: "sftp", Host: "host", Path: "/dir/file.txt", RawQuery: "mode=get&x=1", Fragment: "part"}, true, "sftp://host/dir/file.txt?mode=get&x=1#part"},
 		{"host:/path", URI{}, false, ""},
 		{"not-a-uri", URI{}, false, ""},
+		{"sftp:///path-only", URI{}, false, ""},
 		{"", URI{}, false, ""},
 	}
 
